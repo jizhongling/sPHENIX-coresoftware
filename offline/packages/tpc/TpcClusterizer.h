@@ -18,6 +18,7 @@ class TrkrClusterContainerv3;
 class TrkrClusterHitAssocv3;
 class PHG4CylinderCellGeom;
 class PHG4CylinderCellGeomContainer;
+class TrainingHitsContainer;
 
 //typedef std::pair<int, int> iphiz;
 //typedef std::pair<double, iphiz> ihit;
@@ -67,6 +68,8 @@ class TpcClusterizer : public SubsysReco
   // From Tony Frawley May 13, 2021
   double par0_neg = 0.0503;
   double par0_pos = -0.0503;
+
+  TrainingHitsContainer *m_training;
   
 };
 

@@ -15,6 +15,8 @@
 #include <trackbase/ActsSurfaceMaps.h>
 
 #include <tpc/TpcDefs.h>
+#include <tpc/TrainingHitsContainer.h>
+#include <tpc/TrainingHits.h>
 
 #include <trackbase/TrkrClusterContainer.h>
 #include <trackbase/TrkrHitSet.h>
@@ -57,6 +59,7 @@
 #include <set>                                          // for _Rb_tree_cons...
 #include <utility>
 #include <vector>
+#include <algorithm>
 
 using namespace std;
 
@@ -77,6 +80,7 @@ SvtxEvaluator::SvtxEvaluator(const string& /*name*/, const string& filename, con
   , _do_gpoint_eval(true)
   , _do_g4hit_eval(true)
   , _do_hit_eval(true)
+  , _do_training_eval(true)
   , _do_cluster_eval(true)
   , _do_g4cluster_eval(true)
   , _do_gtrack_eval(true)
@@ -101,6 +105,10 @@ SvtxEvaluator::SvtxEvaluator(const string& /*name*/, const string& filename, con
   , _ntp_gtrack(nullptr)
   , _ntp_track(nullptr)
   , _ntp_gseed(nullptr)
+  , _t_training(nullptr)
+  , training_phi(0.)
+  , training_z(0.)
+  , training_layer(0)
   , _filename(filename)
   , _trackmapname(trackmapname)
   , _tfile(nullptr)
@@ -161,6 +169,14 @@ int SvtxEvaluator::Init(PHCompositeNode* /*topNode*/)
                                            "gembed:gprimary:efromtruth:"
                                            "nhittpcall:nhittpcin:nhittpcmid:nhittpcout:nclusall:nclustpc:nclusintt:nclusmaps:nclusmms");
 
+  if (_do_training_eval) {
+    _t_training = new TTree("t_training", "Training hits");
+    _t_training->Branch("phi", &training_phi);
+    _t_training->Branch("z", &training_z);
+    _t_training->Branch("layer", &training_layer);
+    _t_training->Branch("adc", &training_adc);
+  }
+
   if (_do_cluster_eval) _ntp_cluster = new TNtuple("ntp_cluster", "svtxcluster => max truth",
                                                    "event:seed:hitID:x:y:z:r:phi:eta:theta:ex:ey:ez:ephi:"
                                                    "e:adc:maxadc:layer:phielem:zelem:size:"
@@ -172,7 +188,7 @@ int SvtxEvaluator::Init(PHCompositeNode* /*topNode*/)
                                                    "nhittpcall:nhittpcin:nhittpcmid:nhittpcout:nclusall:nclustpc:nclusintt:nclusmaps:nclusmms");
 
   if (_do_g4cluster_eval) _ntp_g4cluster = new TNtuple("ntp_g4cluster", "g4cluster => max truth",
-						       "event:layer:gx:gy:gz:gt:gedep:gr:gphi:geta:gtrackID:gflavor:gembed:gprimary:gphisize:gzsize:gadc:nreco:x:y:z:r:phi:eta:ex:ey:ez:ephi:adc"); 
+						       "event:layer:gx:gy:gz:gt:gedep:gr:gphi:geta:gvx:gvy:gvz:gvr:gtrackID:gflavor:gembed:gprimary:gphisize:gzsize:gadc:nreco:x:y:z:r:phi:eta:ex:ey:ez:ephi:adc");
                                                        
   if (_do_gtrack_eval) _ntp_gtrack = new TNtuple("ntp_gtrack", "g4particle => best svtxtrack",
                                                  "event:seed:gntracks:gtrackID:gflavor:gnhits:gnmaps:gnintt:gnmms:"
@@ -293,6 +309,7 @@ int SvtxEvaluator::End(PHCompositeNode* /*topNode*/)
   if (_ntp_gpoint) _ntp_gpoint->Write();
   if (_ntp_g4hit) _ntp_g4hit->Write();
   if (_ntp_hit) _ntp_hit->Write();
+  if (_t_training) _t_training->Write();
   if (_ntp_cluster) _ntp_cluster->Write();
   if (_ntp_g4cluster) _ntp_g4cluster->Write();
   if (_ntp_gtrack) _ntp_gtrack->Write();
@@ -1728,6 +1745,38 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
     }
   }
 
+  //--------------------
+  // fill the Training Tree
+  //--------------------
+
+  if (_t_training)
+  {
+    if (Verbosity() >= 1)
+    {
+      cout << "Filling t_training " << endl;
+      _timer->restart();
+    }
+    // need things off of the DST...
+    TrainingHitsContainer *training_container = findNode::getClass<TrainingHitsContainer>(topNode, "TRAINING_HITSET");
+
+    if (training_container)
+    {
+      for(const auto &hits : training_container->v_hits)
+      {
+        training_phi = hits.phi;
+        training_z = hits.z;
+        training_layer = hits.layer;
+        copy(hits.v_adc.cbegin(), hits.v_adc.cend(), training_adc.begin());
+        _t_training->Fill();
+      }
+    }
+    if (Verbosity() >= 1)
+    {
+      _timer->stop();
+      cout << "hit time:                " << _timer->get_accumulated_time() / 1000. << " sec" << endl;
+    }
+  }
+
   //------------------------
   // fill the Cluster NTuple
   //------------------------
@@ -2274,6 +2323,12 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 	  float gembed = trutheval->get_embed(g4particle);
 	  float gprimary = trutheval->is_primary(g4particle);
 
+          PHG4VtxPoint* g4vtx = trutheval->get_vertex(g4particle);
+          float gvx = g4vtx->get_x();
+          float gvy = g4vtx->get_y();
+          float gvz = g4vtx->get_z();
+          float gvr = sqrt(gvx*gvx+gvy*gvy);
+
 	  if(Verbosity() > 1)
 	    cout << PHWHERE << " PHG4Particle ID " << gtrackID << " gflavor " << gflavor << " gprimary " << gprimary << endl;
 
@@ -2370,6 +2425,10 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 					gr,
 					gphi,
 					geta,
+					gvx,
+					gvy,
+					gvz,
+					gvr,
 					gtrackID,
 					gflavor,
 					gembed,

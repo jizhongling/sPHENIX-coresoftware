@@ -10,6 +10,7 @@
 #include <fun4all/SubsysReco.h>
 
 #include <string>
+#include <array>
 #include <TMatrixFfwd.h>
 #include <TMatrixT.h>   
 #include <TMatrixTUtils.h>
@@ -20,6 +21,7 @@ class TrkrCluster;
 class SvtxEvalStack;
 class TFile;
 class TNtuple;
+class TTree;
 //class TrkrClusterContainer;
 
 /// \class SvtxEvaluator
@@ -56,6 +58,7 @@ class SvtxEvaluator : public SubsysReco
   void do_gpoint_eval(bool b) { _do_gpoint_eval = b; }
   void do_g4hit_eval(bool b) { _do_g4hit_eval = b; }
   void do_hit_eval(bool b) { _do_hit_eval = b; }
+  void do_training_eval(bool b) { _do_training_eval = b; }
   void do_cluster_eval(bool b) { _do_cluster_eval = b; }
   void do_g4cluster_eval(bool b) { _do_g4cluster_eval = b; }
   void do_gtrack_eval(bool b) { _do_gtrack_eval = b; }
@@ -93,6 +96,7 @@ class SvtxEvaluator : public SubsysReco
   bool _do_gpoint_eval;
   bool _do_g4hit_eval;
   bool _do_hit_eval;
+  bool _do_training_eval;
   bool _do_cluster_eval;
   bool _do_g4cluster_eval;
   bool _do_gtrack_eval;
@@ -120,6 +124,12 @@ class SvtxEvaluator : public SubsysReco
   TNtuple *_ntp_gtrack;
   TNtuple *_ntp_track;
   TNtuple *_ntp_gseed;
+
+  TTree *_t_training;
+  Float_t training_phi;
+  Float_t training_z;
+  Short_t training_layer;
+  std::array<Short_t, 11*11> training_adc;
 
   // evaluator output file
   std::string _filename;
