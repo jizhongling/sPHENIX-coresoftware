@@ -106,9 +106,6 @@ SvtxEvaluator::SvtxEvaluator(const string& /*name*/, const string& filename, con
   , _ntp_track(nullptr)
   , _ntp_gseed(nullptr)
   , _t_training(nullptr)
-  , training_phi(0.)
-  , training_z(0.)
-  , training_layer(0)
   , _filename(filename)
   , _trackmapname(trackmapname)
   , _tfile(nullptr)
@@ -171,9 +168,10 @@ int SvtxEvaluator::Init(PHCompositeNode* /*topNode*/)
 
   if (_do_training_eval) {
     _t_training = new TTree("t_training", "Training hits");
+    _t_training->Branch("event", &training_event);
+    _t_training->Branch("layer", &training_layer);
     _t_training->Branch("phi", &training_phi);
     _t_training->Branch("z", &training_z);
-    _t_training->Branch("layer", &training_layer);
     _t_training->Branch("adc", &training_adc);
   }
 
@@ -1763,9 +1761,10 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
     {
       for(const auto &hits : training_container->v_hits)
       {
+        training_event = _ievent;
+        training_layer = hits.layer;
         training_phi = hits.phi;
         training_z = hits.z;
-        training_layer = hits.layer;
         copy(hits.v_adc.cbegin(), hits.v_adc.cend(), training_adc.begin());
         _t_training->Fill();
       }

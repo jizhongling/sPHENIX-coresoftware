@@ -126,9 +126,10 @@ class SvtxEvaluator : public SubsysReco
   TNtuple *_ntp_gseed;
 
   TTree *_t_training;
+  Short_t training_event;
+  Short_t training_layer;
   Float_t training_phi;
   Float_t training_z;
-  Short_t training_layer;
   std::array<Short_t, 11*11> training_adc;
 
   // evaluator output file
