@@ -61,7 +61,11 @@ namespace
   bool use_nn = true;
   const int nd = 5;
   const int nmax_truth = 5;
-  torch::jit::script::Module module[nmax_truth*2+2];
+  torch::jit::script::Module module_ntruth;
+  torch::jit::script::Module module_pos[nmax_truth];
+  torch::jit::script::Module module_phicov[nmax_truth];
+  torch::jit::script::Module module_zcov[nmax_truth];
+  torch::jit::script::Module module_adc[nmax_truth];
 
   struct thread_data 
   {
@@ -514,19 +518,24 @@ namespace
       hitkeyvec.clear();
     }
   
-    void calc_cluster_parameter(int phibin, int zbin, float phi_cov, float z_cov, int clus_adc, int iclus, const thread_data& my_data)
+    void calc_cluster_parameter(float local_phi, float local_z, float phi_cov, float z_cov, int clus_adc,
+        int iclus, const thread_data& my_data)
     {
-      double radius = my_data.layergeom->get_radius();  // returns center of layer
-      int iphi = phibin + my_data.phioffset;
-      int iz = zbin + my_data.zoffset;
-      if(iphi < 0 || iphi >= my_data.phibins || iz < 0 || iz >= my_data.zbins)
+      // Return center of layer
+      double radius = my_data.layergeom->get_radius();
+      int iphi = (int)local_phi + my_data.phioffset;
+      int iz = (int)local_z + my_data.zoffset;
+      if( iphi < 0 || iphi >= my_data.phibins ||
+          iz < 0 || iz >= my_data.zbins )
         return;
 
       // This is the global position
-      double clusphi = my_data.layergeom->get_phicenter(iphi);
+      double dphi = (local_phi - std::floor(local_phi)) * my_data.layergeom->get_phistep();
+      double dz = (local_z - std::floor(local_z)) * my_data.layergeom->get_zstep();
+      double clusphi = my_data.layergeom->get_phicenter(iphi) + dphi;
       float clusx = radius * cos(clusphi);
       float clusy = radius * sin(clusphi);
-      double clusz = my_data.layergeom->get_zcenter(iz);
+      float clusz = my_data.layergeom->get_zcenter(iz) + dz;
 
       // Get the surface key to find the surface
       TrkrDefs::hitsetkey tpcHitSetKey = TpcDefs::genHitSetKey(my_data.layer, my_data.sector, my_data.side);
@@ -538,7 +547,12 @@ namespace
 						    my_data.tGeometry,
 						    subsurfkey);
 
-      // create the cluster entry directly in the node tree
+      // If the surface can't be found, we can't track with it.
+      // So just return and don't add the cluster to the container
+      if(!surface)
+        return;
+
+      // Create the cluster entry directly in the node tree
       const TrkrDefs::cluskey ckey = TpcDefs::genClusKey(my_data.hitset->getHitSetKey(), iclus);
       TrkrClusterv3 *clus = new TrkrClusterv3();
       clus->setClusKey(ckey);
@@ -546,13 +560,12 @@ namespace
       clusz -= clusz < 0 ? my_data.par0_neg : my_data.par0_pos;
 
       // Fill in the cluster details
-      //================
       clus->setAdc(clus_adc);
       clus->setSubSurfKey(subsurfkey);
 
       Acts::Vector3 center = surface->center(my_data.tGeometry->geoContext)/Acts::UnitConstants::cm;
 
-      // no conversion needed, only used in acts
+      // No conversion needed, only used in acts
       Acts::Vector3 normal = surface->normal(my_data.tGeometry->geoContext);
       double clusRadius = sqrt(clusx * clusx + clusy * clusy);
       double rClusPhi = clusRadius * clusphi;
@@ -573,7 +586,7 @@ namespace
       }
       else
       {
-        // otherwise take the manual calculation
+        // Otherwise take the manual calculation
         localPos(0) = rClusPhi - surfRphiCenter;
         localPos(1) = clusz - surfZCenter;
       }
@@ -585,8 +598,7 @@ namespace
       clus->setActsLocalError(0,1, 0.);
       clus->setActsLocalError(1,1, z_cov);
 
-      // Add the hit associations to the TrkrClusterHitAssoc node
-      // we need the cluster key and all associated hit keys (note: the cluster key includes the hitset key)
+      // Add the cluster to the cluster list
       if(my_data.clusterlist)
         my_data.cluster_vector->push_back(clus);
     }
@@ -736,18 +748,21 @@ namespace
               }, 1));
 
         // Execute the model and turn its output into a tensor
-        int ntruth = module[0].forward(inputs).toTensor().argmax(1).data_ptr<int64_t>()[0];
-        if(ntruth == 0) continue;
-        at::Tensor ten_pos = module[ntruth].forward(inputs).toTensor();
-        at::Tensor ten_step = torch::tensor({
-            {1./my_data->layergeom->get_phistep(), 0.},
-            {0., 1./my_data->layergeom->get_zstep()}
-            }, torch::kFloat32);
-        float *pos = ten_step.matmul(ten_pos).round().clamp(-nd, nd).data_ptr<float>();
-        float *cov = module[nmax_truth+ntruth].forward(inputs).toTensor().data_ptr<float>();
-        float *clus_adc = module[nmax_truth*2+1].forward(inputs).toTensor().round().clamp_min(0).data_ptr<float>();
+        int ntruth = module_ntruth.forward(inputs).toTensor().argmax(1)[0].item<int>();
+        if(ntruth < 1 || ntruth > nmax_truth) continue;
+        at::Tensor ten_pos = module_pos[ntruth-1].forward(inputs).toTensor().clamp(-nd, nd);
+        at::Tensor ten_phicov = module_phicov[ntruth-1].forward(inputs).toTensor().clamp(1e-3, 10.);
+        at::Tensor ten_zcov = module_zcov[ntruth-1].forward(inputs).toTensor().clamp(1e-3, 10.);
+        at::Tensor ten_adc = module_adc[ntruth-1].forward(inputs).toTensor().round().clamp(1, 1000);
         for(int i=0; i<ntruth; i++)
-          calc_cluster_parameter(iphi+pos[i], iz+pos[ntruth+i], cov[i], cov[ntruth+i], clus_adc[i], nclus++, *my_data);
+        {
+          float clus_phi = ten_pos[0][0][i].item<float>() + static_cast<float>(iphi);
+          float clus_z = ten_pos[0][1][i].item<float>() + static_cast<float>(iz);
+          float clus_phicov = ten_phicov[0][i].item<float>();
+          float clus_zcov = ten_zcov[0][i].item<float>();
+          int clus_adc = ten_adc[0][i].item<int>();
+          calc_cluster_parameter(clus_phi, clus_z, clus_phicov, clus_zcov, clus_adc, nclus++, *my_data);
+        }
       }
       catch(const c10::Error &e)
       {
@@ -768,25 +783,7 @@ namespace
 
 TpcClusterizer::TpcClusterizer(const std::string &name)
   : SubsysReco(name)
-{
-  for(int type=0; type<nmax_truth*2+2; type++)
-  {
-    char filename[200];
-    sprintf(filename, "/gpfs/mnt/gpfs02/phenix/plhf/plhf1/zji/github/sphenix/macros/detectors/sPHENIX/results/net_model-type%d.pt", type);
-    try
-    {
-      // Deserialize the ScriptModule from a file using torch::jit::load()
-      module[type] = torch::jit::load(filename);
-      std::cout << PHWHERE << "Load model " << filename << " with type " << type << std::endl;
-    }
-    catch(const c10::Error &e)
-    {
-      std::cout << PHWHERE << "Error: Cannot load model " << filename << std::endl;
-      use_nn = false;
-      break;
-    }
-  }
-}
+{}
 
 bool TpcClusterizer::is_in_sector_boundary(int phibin, int sector, PHG4CylinderCellGeom *layergeom) const
 {
@@ -884,6 +881,40 @@ int TpcClusterizer::InitRun(PHCompositeNode *topNode)
     PHIODataNode<PHObject> *TrainingHitsContainerNode =
         new PHIODataNode<PHObject>(training_container, "TRAINING_HITSET", "PHObject");
     DetNode->addNode(TrainingHitsContainerNode);
+  }
+
+  use_nn = _use_nn;
+  if(use_nn)
+  {
+    const char *fileroot = "/gpfs/mnt/gpfs02/phenix/plhf/plhf1/zji/github/sphenix/coresoftware/offline/packages/tpc/modules/net_model";
+    char filename[200];
+    try
+    {
+      // Deserialize the ScriptModule from a file using torch::jit::load()
+      sprintf(filename, "%s-type0-nout%d.pt", fileroot, nmax_truth);
+      module_ntruth = torch::jit::load(filename);
+      for(int ntruth=1; ntruth<=nmax_truth; ntruth++)
+      {
+        sprintf(filename, "%s-type1-nout%d.pt", fileroot, ntruth);
+        module_pos[ntruth-1] = torch::jit::load(filename);
+        sprintf(filename, "%s-type2-nout%d.pt", fileroot, ntruth);
+        module_phicov[ntruth-1] = torch::jit::load(filename);
+        sprintf(filename, "%s-type3-nout%d.pt", fileroot, ntruth);
+        module_zcov[ntruth-1] = torch::jit::load(filename);
+        sprintf(filename, "%s-type4-nout%d.pt", fileroot, ntruth);
+        module_adc[ntruth-1] = torch::jit::load(filename);
+      }
+      std::cout << PHWHERE << "Use NN clustering" << std::endl;
+    }
+    catch(const c10::Error &e)
+    {
+      std::cout << PHWHERE << "Error: Cannot load module " << filename << std::endl;
+      exit(1);
+    }
+  }
+  else
+  {
+    std::cout << PHWHERE << "Use traditional clustering" << std::endl;
   }
 
   return Fun4AllReturnCodes::EVENT_OK;

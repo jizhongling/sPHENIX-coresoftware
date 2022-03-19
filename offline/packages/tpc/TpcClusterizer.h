@@ -36,6 +36,7 @@ class TpcClusterizer : public SubsysReco
   int End(PHCompositeNode *topNode) override;
 
   void set_sector_fiducial_cut(const double cut){SectorFiducialCut = cut; }
+  void set_use_nn(bool use_nn) { _use_nn = use_nn; }
   void set_do_hit_association(bool do_assoc){do_hit_assoc = do_assoc;}
   void set_max_cluster_half_size_phi(unsigned short size) { MaxClusterHalfSizePhi = size ;}
   void set_max_cluster_half_size_z(unsigned short size) { MaxClusterHalfSizeZ = size ;}
@@ -51,6 +52,7 @@ class TpcClusterizer : public SubsysReco
   ActsSurfaceMaps *m_surfMaps = nullptr;
   ActsTrackingGeometry *m_tGeometry = nullptr;
 
+  bool _use_nn = true;
   bool do_hit_assoc = true;
   double pedestal = 74.4;
   double SectorFiducialCut = 0.5;
