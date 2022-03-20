@@ -751,8 +751,8 @@ namespace
         int ntruth = module_ntruth.forward(inputs).toTensor().argmax(1)[0].item<int>();
         if(ntruth < 1 || ntruth > nmax_truth) continue;
         at::Tensor ten_pos = module_pos[ntruth-1].forward(inputs).toTensor().clamp(-nd, nd);
-        at::Tensor ten_phicov = module_phicov[ntruth-1].forward(inputs).toTensor().clamp(1e-3, 10.);
-        at::Tensor ten_zcov = module_zcov[ntruth-1].forward(inputs).toTensor().clamp(1e-3, 10.);
+        at::Tensor ten_phicov = module_phicov[ntruth-1].forward(inputs).toTensor().clamp(1e-6, 100.);
+        at::Tensor ten_zcov = module_zcov[ntruth-1].forward(inputs).toTensor().clamp(1e-4, 100.);
         at::Tensor ten_adc = module_adc[ntruth-1].forward(inputs).toTensor().round().clamp(1, 1000);
         for(int i=0; i<ntruth; i++)
         {
