@@ -186,7 +186,7 @@ int SvtxEvaluator::Init(PHCompositeNode* /*topNode*/)
                                                    "nhittpcall:nhittpcin:nhittpcmid:nhittpcout:nclusall:nclustpc:nclusintt:nclusmaps:nclusmms");
 
   if (_do_g4cluster_eval) _ntp_g4cluster = new TNtuple("ntp_g4cluster", "g4cluster => max truth",
-						       "event:layer:gx:gy:gz:gt:gedep:gr:gphi:geta:gvx:gvy:gvz:gvr:gtrackID:gflavor:gembed:gprimary:gphisize:gzsize:gephi:gez:gadc:nreco:x:y:z:r:phi:eta:ex:ey:ez:ephi:adc");
+						       "event:layer:gx:gy:gz:gt:gedep:gr:gphi:geta:gvx:gvy:gvz:gvr:gtrackID:gflavor:gembed:gprimary:gphisize:gzsize:gadc:nreco:x:y:z:r:phi:eta:ex:ey:ez:ephi:adc");
                                                        
   if (_do_gtrack_eval) _ntp_gtrack = new TNtuple("ntp_gtrack", "g4particle => best svtxtrack",
                                                  "event:seed:gntracks:gtrackID:gflavor:gnhits:gnmaps:gnintt:gnmms:"
@@ -2362,8 +2362,6 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 	      
 	      float gphisize = gclus->getSize(1,1);
 	      float gzsize = gclus->getSize(2,2);
-              float gephi = gclus->getRPhiError();
-              float gez = gclus->getZError();
 
 	      // Find the matching TrkrCluster, if it exists
 
@@ -2436,8 +2434,6 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 					gprimary,
 					gphisize,
 					gzsize,
-                                        gephi,
-                                        gez,
 					gadc,
 					nreco,
 					x,
