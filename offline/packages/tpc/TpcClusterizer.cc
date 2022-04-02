@@ -521,11 +521,10 @@ namespace
     void calc_cluster_parameter(float local_phi, float local_z,
         const std::vector<ihit> &ihit_list, int iclus, const thread_data& my_data)
     {
+      local_phi = std::clamp(local_phi, 0.f, (float)my_data.phibins - 1.f);
+      local_z = std::clamp(local_z, 0.f, (float)my_data.zbins - 1.f);
       int iphi = (int)local_phi + my_data.phioffset;
       int iz = (int)local_z + my_data.zoffset;
-      if( iphi < 0 || iphi >= my_data.phibins ||
-          iz < 0 || iz >= my_data.zbins )
-        return;
 
       // this is the global position
       double radius = my_data.layergeom->get_radius();  // return center of layer
@@ -763,7 +762,7 @@ namespace
       for(int phibin = std::max(iphi-nd,0); phibin < std::min(iphi+nd+1,(int)phibins); phibin++)
         for(int zbin = std::max(iz-nd,0); zbin < std::min(iz+nd+1,(int)zbins); zbin++)
         {
-          training_hits->v_adc[(phibin+nd-iphi)*(2*nd+1)+(zbin+nd-iz)] = adcval_copy[phibin][zbin];
+          training_hits->v_adc[(phibin-iphi+nd)*(2*nd+1)+(zbin-iz+nd)] = adcval_copy[phibin][zbin];
           remove_hit(adcval_copy[phibin][zbin],phibin,zbin,all_hit_map_copy,adcval_copy);
         }
 
@@ -810,7 +809,7 @@ namespace
         {
           // put all hits in the 11x11 hits array (sorted by adc)
           // start with highest adc hit
-          v_adc[(phibin+nd-iphi)*(2*nd+1)+(zbin+nd-iz)] = adcval[phibin][zbin];
+          v_adc[(phibin-iphi+nd)*(2*nd+1)+(zbin-iz+nd)] = adcval[phibin][zbin];
           // remove hits from all_hit_map
           // repeat untill all_hit_map empty
           remove_hit(adcval[phibin][zbin],phibin,zbin,all_hit_map,adcval);
