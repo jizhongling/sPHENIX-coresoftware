@@ -170,6 +170,7 @@ int SvtxEvaluator::Init(PHCompositeNode* /*topNode*/)
     _t_training = new TTree("t_training", "Training hits");
     _t_training->Branch("event", &training_event);
     _t_training->Branch("layer", &training_layer);
+    _t_training->Branch("radius", &training_radius);
     _t_training->Branch("phi", &training_phi);
     _t_training->Branch("z", &training_z);
     _t_training->Branch("adc", &training_adc);
@@ -1763,6 +1764,7 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
       {
         training_event = _ievent;
         training_layer = hits.layer;
+        training_radius = hits.radius;
         training_phi = hits.phi;
         training_z = hits.z;
         copy(hits.v_adc.cbegin(), hits.v_adc.cend(), training_adc.begin());

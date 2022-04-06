@@ -8,6 +8,7 @@ TrainingHits::TrainingHits()
 void TrainingHits::Reset()
 {
   v_adc.fill(0);
+  radius = 0.;
   phi = 0.;
   z = 0.;
   layer = 0;

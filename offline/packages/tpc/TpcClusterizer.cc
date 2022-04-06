@@ -220,9 +220,6 @@ namespace
 	
   void get_cluster(int phibin, int zbin, const thread_data& my_data, const std::vector<std::vector<unsigned short>> &adcval, std::vector<ihit> &ihit_list)
 	{
-          phibin = std::clamp(phibin, 0, (int)my_data.phibins - 1);
-          zbin = std::clamp(zbin, 0, (int)my_data.zbins - 1);
-
 	  // search along phi at the peak in z
 	 
 	  int zup =0;
@@ -311,7 +308,8 @@ namespace
 	
 	}
   
-    void calc_cluster_parameter(const std::vector<ihit> &ihit_list,int iclus, const thread_data& my_data )
+    void calc_cluster_parameter(const int iphi_center, const int iz_center, const std::vector<ihit> &ihit_list,
+        int &iclus, const thread_data& my_data)
     {
     
       // get z range from layer geometry
@@ -336,6 +334,14 @@ namespace
       
       if(clus_size == 1) return;
       
+      // training information
+      auto training_hits = new TrainingHits;
+      training_hits->radius = radius;
+      training_hits->phi = my_data.layergeom->get_phicenter(iphi_center+my_data.phioffset);
+      training_hits->z = my_data.layergeom->get_zcenter(iz_center+my_data.zoffset);
+      training_hits->layer = my_data.layer;
+      training_hits->v_adc.fill(0);
+
       std::vector<TrkrDefs::hitkey> hitkeyvec;
       for(auto iter = ihit_list.begin(); iter != ihit_list.end();++iter){
 	double adc = iter->first; 
@@ -372,6 +378,12 @@ namespace
 	TrkrDefs::hitkey hitkey = TpcDefs::genHitKey(iphi, iz);
 	// if(adc>5)
 	hitkeyvec.push_back(hitkey);
+
+        // training adc
+        int iphi_diff = iter->second.first - iphi_center;
+        int iz_diff = iter->second.second - iz_center;
+        if( std::abs(iphi_diff) <= nd && std::abs(iz_diff) <= nd)
+          training_hits->v_adc[(iphi_diff+nd)*(2*nd+1)+(iz_diff+nd)] = adc;
       }
       if (adc_sum < 10){
 	hitkeyvec.clear();
@@ -488,9 +500,55 @@ namespace
       // Add the hit associations to the TrkrClusterHitAssoc node
       // we need the cluster key and all associated hit keys (note: the cluster key includes the hitset key)
       
+      int ntruth = 0;
+      float nn_rphi[nmax_truth], nn_z[nmax_truth];
+      TrkrDefs::cluskey nn_ckey[nmax_truth];
       if(my_data.clusterlist)     
 	{
+          if(use_nn)
+          {
+            try
+            {
+              // Create a vector of inputs
+              std::vector<torch::jit::IValue> inputs;
+              inputs.emplace_back(torch::stack({
+                    torch::from_blob(std::vector<float>(training_hits->v_adc.begin(), training_hits->v_adc.end()).data(), {1, 2*nd+1, 2*nd+1}, torch::kFloat32),
+                    torch::full({1, 2*nd+1, 2*nd+1}, (training_hits->layer - 7) / 16, torch::kFloat32),
+                    torch::full({1, 2*nd+1, 2*nd+1}, training_hits->z / radius, torch::kFloat32)
+                    }, 1));
+
+              // Execute the model and turn its output into a tensor
+              ntruth = module_ntruth.forward(inputs).toTensor().argmax(1)[0].item<int>();
+              if(ntruth >= 1 && ntruth <= nmax_truth)
+              {
+                at::Tensor ten_pos = module_pos[ntruth-1].forward(inputs).toTensor();
+                for(int i=0; i<ntruth; i++)
+                {
+                  float max_rphi = radius * my_data.layergeom->get_phistep() * nd;
+                  float max_z = my_data.layergeom->get_zstep() * nd;
+                  nn_rphi[i] = radius * training_hits->phi + std::clamp(ten_pos[0][0][i].item<float>(), -max_rphi, max_rphi);
+                  nn_z[i] = training_hits->z + std::clamp(ten_pos[0][1][i].item<float>(), -max_z, max_z);
+                  nn_ckey[i] = TpcDefs::genClusKey( my_data.hitset->getHitSetKey(), iclus );
+                  TrkrClusterv3 *nn_clus = new TrkrClusterv3();
+                  nn_clus->CopyFrom(clus);
+                  clus->setClusKey(nn_ckey[i]);
+                  nn_clus->setLocalX(nn_rphi[i] - surfRphiCenter);
+                  nn_clus->setLocalY(nn_z[i] - surfZCenter);
+                  my_data.cluster_vector->push_back(nn_clus);
+                  iclus++;
+                }
+              }
+            }
+            catch(const c10::Error &e)
+            {
+              std::cout << PHWHERE << "Error: Failed to execute NN modules" << std::endl;
+            }
+            delete clus;
+          } // use_nn
+          else
+          {
 	  my_data.cluster_vector->push_back(clus);
+          iclus++;
 	  /*
 	   * if cluster was properly inserted in the map, one should release the unique_ptr,
 	   * to make sure that the cluster is not deleted when going out-of-scope
@@ -505,6 +563,7 @@ namespace
 	      << std::endl;        
 	  }
 	  */
+          }
 	  
 	}
 
@@ -512,181 +571,26 @@ namespace
       if(my_data.do_assoc){
 	//std::cout << "filling assoc" << std::endl;
 	for (unsigned int i = 0; i < hitkeyvec.size(); i++){
+          if(use_nn)
+          {
+            float hit_rphi = radius * my_data.layergeom->get_phicenter(TpcDefs::getPad(hitkeyvec[i]));
+            float hit_z = my_data.layergeom->get_zcenter(TpcDefs::getTBin(hitkeyvec[i]));
+            std::vector<float> hit_diff;
+            for(int j=0; j<ntruth; j++)
+              hit_diff.emplace_back(square(hit_rphi-nn_rphi[j]) + square(hit_z-nn_z[j]));
+            int imin = std::min_element(hit_diff.begin(), hit_diff.end()) - hit_diff.begin();
+            my_data.association_vector->push_back(std::make_pair(nn_ckey[imin], hitkeyvec[i]));
+          }
+          else
+          {
 	  my_data.association_vector->push_back(std::make_pair(ckey, hitkeyvec[i]));
+          }
 	}
       }
       hitkeyvec.clear();
+      my_data.v_hits->emplace_back(training_hits);
     }
   
-    void calc_cluster_parameter(float local_phi, float local_z,
-        const std::vector<ihit> &ihit_list, int iclus, const thread_data& my_data)
-    {
-      local_phi = std::clamp(local_phi, 0.f, (float)my_data.phibins - 1.f);
-      local_z = std::clamp(local_z, 0.f, (float)my_data.zbins - 1.f);
-      int iphi = (int)local_phi + my_data.phioffset;
-      int iz = (int)local_z + my_data.zoffset;
-
-      // this is the global position
-      double radius = my_data.layergeom->get_radius();  // return center of layer
-      double dphi = (local_phi - std::floor(local_phi)) * my_data.layergeom->get_phistep();
-      double dz = (local_z - std::floor(local_z)) * my_data.layergeom->get_zstep();
-      double clusphi = my_data.layergeom->get_phicenter(iphi) + dphi;
-      float clusx = radius * cos(clusphi);
-      float clusy = radius * sin(clusphi);
-      float clusz = my_data.layergeom->get_zcenter(iz) + dz;
-
-      // get z range from layer geometry
-      // these are used for rescaling the drift velocity
-      const double z_min = -105.5;
-      const double z_max = 105.5;
-
-      // loop over the hits in this cluster
-      double z_sum = 0.0;
-      double phi_sum = 0.0;
-      double adc_sum = 0.0;
-      double z2_sum = 0.0;
-      double phi2_sum = 0.0;
-
-      int phibinhi = -1;
-      int phibinlo = 666666;
-      int zbinhi = -1;
-      int zbinlo = 666666;
-      int clus_size = ihit_list.size();
-
-      if(clus_size <= 1) return;
-
-      std::vector<TrkrDefs::hitkey> hitkeyvec;
-      for(auto iter = ihit_list.begin(); iter != ihit_list.end(); iter++)
-      {
-	double adc = iter->first;
-	if(adc <= 0) continue;
-
-	int iphi = iter->second.first + my_data.phioffset;
-	int iz   = iter->second.second + my_data.zoffset;
-	if(iphi > phibinhi) phibinhi = iphi;
-	if(iphi < phibinlo) phibinlo = iphi;
-	if(iz > zbinhi) zbinhi = iz;
-	if(iz < zbinlo) zbinlo = iz;
-
-	// update phi sums
-	double phi_center = my_data.layergeom->get_phicenter(iphi);
-	phi_sum += phi_center * adc;
-	phi2_sum += square(phi_center)*adc;
-
-	// update z sums
-	double z = my_data.layergeom->get_zcenter(iz);
-
-	// apply drift velocity scale
-	/* this formula ensures that z remains unchanged when located on one of the readout plane, at either z_max or z_min */
-	z = z*my_data.m_drift_velocity_scale + (z>0 ? z_max:z_min)*(1.-my_data.m_drift_velocity_scale);
-
-	z_sum += z*adc;
-	z2_sum += square(z)*adc;
-
-	adc_sum += adc;
-
-	// capture the hitkeys for all adc values above a certain threshold
-	TrkrDefs::hitkey hitkey = TpcDefs::genHitKey(iphi, iz);
-	hitkeyvec.push_back(hitkey);
-      }
-
-      if(adc_sum < 10)
-      {
-	hitkeyvec.clear();
-	return;  // skip obvious noise "clusters"
-      }
-
-      // Get the surface key to find the surface
-      TrkrDefs::hitsetkey tpcHitSetKey = TpcDefs::genHitSetKey(my_data.layer, my_data.sector, my_data.side);
-      Acts::Vector3 global(clusx, clusy, clusz);
-      TrkrDefs::subsurfkey subsurfkey = 0;
-      Surface surface = get_tpc_surface_from_coords(tpcHitSetKey,
-						    global,
-						    my_data.surfmaps,
-						    my_data.tGeometry,
-						    subsurfkey);
-
-      // If the surface can't be found, we can't track with it.
-      // So just return and don't add the cluster to the container
-      if(!surface) return;
-
-      // Create the cluster entry directly in the node tree
-      const TrkrDefs::cluskey ckey = TpcDefs::genClusKey(my_data.hitset->getHitSetKey(), iclus);
-      TrkrClusterv3 *clus = new TrkrClusterv3();
-      clus->setClusKey(ckey);
-
-      // Estimate the errors
-      // phi_cov = (weighted mean of dphi^2) - (weighted mean of dphi)^2,  which is essentially the weighted mean of dphi^2. The error is then:
-      // e_phi = sigma_dphi/sqrt(N) = sqrt( sigma_dphi^2 / N )  -- where N is the number of samples of the distribution with standard deviation sigma_dphi
-      //    - N is the number of electrons that drift to the readout plane
-      // We have to convert (sum of adc units for all bins in the cluster) to number of ionization electrons N
-      // Conversion gain is 20 mV/fC - relates total charge collected on pad to PEAK voltage out of ADC. The GEM gain is assumed to be 2000
-      // To get equivalent charge per Z bin, so that summing ADC input voltage over all Z bins returns total input charge, divide voltages by 2.4 for 80 ns SAMPA
-      // Equivalent charge per Z bin is then  (ADU x 2200 mV / 1024) / 2.4 x (1/20) fC/mV x (1/1.6e-04) electrons/fC x (1/2000) = ADU x 0.14
-      const double phi_cov = phi2_sum/adc_sum - square(phi_sum/adc_sum);
-      const double z_cov = z2_sum/adc_sum - square(z_sum/adc_sum);
-
-      const double phi_err_square = (phibinhi == phibinlo) ?
-	square(radius*my_data.layergeom->get_phistep())/12 :
-	square(radius)*phi_cov/(adc_sum*0.14);
-
-      const double z_err_square = (zbinhi == zbinlo) ?
-	square(my_data.layergeom->get_zstep())/12 :
-	z_cov/(adc_sum*0.14);
-
-      clusz -= (clusz < 0) ? my_data.par0_neg : my_data.par0_pos;
-
-      // Fill in the cluster details
-      clus->setAdc(adc_sum);
-      clus->setSubSurfKey(subsurfkey);
-
-      Acts::Vector3 center = surface->center(my_data.tGeometry->geoContext)/Acts::UnitConstants::cm;
-
-      // No conversion needed, only used in acts
-      Acts::Vector3 normal = surface->normal(my_data.tGeometry->geoContext);
-      double clusRadius = sqrt(clusx * clusx + clusy * clusy);
-      double rClusPhi = clusRadius * clusphi;
-      double surfRadius = sqrt(center(0)*center(0) + center(1)*center(1));
-      double surfPhiCenter = atan2(center[1], center[0]);
-      double surfRphiCenter = surfPhiCenter * surfRadius;
-      double surfZCenter = center[2];
-
-      auto local = surface->globalToLocal(my_data.tGeometry->geoContext,
-					  global * Acts::UnitConstants::cm,
-					  normal);
-      Acts::Vector2 localPos;
-
-      // Prefer Acts transformation since we build the TPC surfaces manually
-      if(local.ok())
-      {
-        localPos = local.value() / Acts::UnitConstants::cm;
-      }
-      else
-      {
-        // Otherwise take the manual calculation
-        localPos(0) = rClusPhi - surfRphiCenter;
-        localPos(1) = clusz - surfZCenter;
-      }
-      clus->setLocalX(localPos(0));
-      clus->setLocalY(localPos(1));
-
-      clus->setActsLocalError(0,0, phi_err_square);
-      clus->setActsLocalError(1,0, 0.);
-      clus->setActsLocalError(0,1, 0.);
-      clus->setActsLocalError(1,1, z_err_square);
-
-      // Add the cluster to the cluster list
-      if(my_data.clusterlist)
-        my_data.cluster_vector->push_back(clus);
-
-      // Add the hit associations to the TrkrClusterHitAssoc node
-      // We need the cluster key and all associated hit keys (note: the cluster key includes the hitset key)
-      if(my_data.do_assoc)
-	for (unsigned int i = 0; i < hitkeyvec.size(); i++)
-	  my_data.association_vector->push_back(std::make_pair(ckey, hitkeyvec[i]));
-      hitkeyvec.clear();
-    }
-
   void *ProcessSector(void *threadarg) {
 
     auto my_data = static_cast<thread_data*>(threadarg);
@@ -695,7 +599,6 @@ namespace
     const auto& phioffset = my_data->phioffset;
     const auto& zbins     = my_data->zbins ;
     const auto& zoffset   = my_data->zoffset ;
-    const auto& layer     = my_data->layer;
 	
     TrkrHitSet *hitset = my_data->hitset;
     TrkrHitSet::ConstRange hitrangei = hitset->getHits();
@@ -741,112 +644,30 @@ namespace
       }
     }
     
-    std::vector<std::vector<unsigned short>> adcval_copy(adcval);
-    std::multimap<unsigned short, ihit> all_hit_map_copy(all_hit_map);
-
-    while(!use_nn && all_hit_map_copy.size() > 0)
-    {
-      auto training_hits = new TrainingHits;
-
-      auto iter = all_hit_map_copy.rbegin();
-      ihit hiHit = iter->second;
-      int iphi = hiHit.second.first;
-      int iz = hiHit.second.second;
-
-      // This is the global position
-      training_hits->phi = my_data->layergeom->get_phicenter(iphi+phioffset);
-      training_hits->z = my_data->layergeom->get_zcenter(iz+zoffset);
-      training_hits->z -= training_hits->z < 0 ? my_data->par0_neg : my_data->par0_pos;
-      training_hits->layer = my_data->layer;
-
-      for(int phibin = std::max(iphi-nd,0); phibin < std::min(iphi+nd+1,(int)phibins); phibin++)
-        for(int zbin = std::max(iz-nd,0); zbin < std::min(iz+nd+1,(int)zbins); zbin++)
-        {
-          training_hits->v_adc[(phibin-iphi+nd)*(2*nd+1)+(zbin-iz+nd)] = adcval_copy[phibin][zbin];
-          remove_hit(adcval_copy[phibin][zbin],phibin,zbin,all_hit_map_copy,adcval_copy);
-        }
-
-      my_data->v_hits->emplace_back(training_hits);
-    }
-
     int nclus = 0;
-    while(!use_nn && all_hit_map.size() > 0)
-    {
+    while(all_hit_map.size()>0){
+      
       auto iter = all_hit_map.rbegin();
+      if(iter == all_hit_map.rend()){
+	break;
+      }
       ihit hiHit = iter->second;
       int iphi = hiHit.second.first;
       int iz = hiHit.second.second;
-
-      // put all hits in the all_hit_map (sorted by adc)
-      // start with highest adc hit
+      
+      //put all hits in the all_hit_map (sorted by adc)
+      //start with highest adc hit
       // -> cluster around it and get vector of hits
       std::vector<ihit> ihit_list;
       get_cluster(iphi, iz, *my_data, adcval, ihit_list);
-
+      
       // -> calculate cluster parameters
       // -> add hits to truth association
       // remove hits from all_hit_map
       // repeat untill all_hit_map empty
-      calc_cluster_parameter(ihit_list,nclus++, *my_data);
-      remove_hits(ihit_list, all_hit_map, adcval);
+      calc_cluster_parameter(iphi, iz, ihit_list, nclus, *my_data);
+      remove_hits(ihit_list,all_hit_map, adcval);
       ihit_list.clear();
-    }
-
-    nclus = 0;
-    while(use_nn && all_hit_map.size() > 0)
-    {
-      auto iter = all_hit_map.rbegin();
-      ihit hiHit = iter->second;
-      int iphi = hiHit.second.first;
-      int iz = hiHit.second.second;
-      int li = (layer - 7) / 16;
-      float zr = my_data->layergeom->get_zcenter(iz+zoffset) / my_data->layergeom->get_radius();
-
-      std::array<unsigned short, (2*nd+1)*(2*nd+1)> v_adc;
-      v_adc.fill(0);
-      for(int phibin = std::max(iphi-nd,0); phibin < std::min(iphi+nd+1,(int)phibins); phibin++)
-        for(int zbin = std::max(iz-nd,0); zbin < std::min(iz+nd+1,(int)zbins); zbin++)
-        {
-          // put all hits in the 11x11 hits array (sorted by adc)
-          // start with highest adc hit
-          v_adc[(phibin-iphi+nd)*(2*nd+1)+(zbin-iz+nd)] = adcval[phibin][zbin];
-          // remove hits from all_hit_map
-          // repeat untill all_hit_map empty
-          remove_hit(adcval[phibin][zbin],phibin,zbin,all_hit_map,adcval);
-        }
-
-      try
-      {
-        // Create a vector of inputs
-        std::vector<torch::jit::IValue> inputs;
-        inputs.emplace_back(torch::stack({
-              torch::from_blob(std::vector<float>(v_adc.begin(), v_adc.end()).data(), {1, 2*nd+1, 2*nd+1}, torch::kFloat32),
-              torch::full({1, 2*nd+1, 2*nd+1}, li, torch::kFloat32),
-              torch::full({1, 2*nd+1, 2*nd+1}, zr, torch::kFloat32)
-              }, 1));
-
-        // Execute the model and turn its output into a tensor
-        int ntruth = module_ntruth.forward(inputs).toTensor().argmax(1)[0].item<int>();
-        if(ntruth < 1 || ntruth > nmax_truth) continue;
-        at::Tensor ten_pos = module_pos[ntruth-1].forward(inputs).toTensor().clamp(-nd, nd);
-        for(int i=0; i<ntruth; i++)
-        {
-          float clus_phi = ten_pos[0][0][i].item<float>() + static_cast<float>(iphi);
-          float clus_z = ten_pos[0][1][i].item<float>() + static_cast<float>(iz);
-
-          // -> cluster for the 11x11 hits array and get vector of hits
-          // -> calculate cluster parameters
-          // -> add hits to truth association
-          std::vector<ihit> ihit_list;
-          get_cluster(std::round(clus_phi), std::round(clus_z), *my_data, adcval_copy, ihit_list);
-          calc_cluster_parameter(clus_phi, clus_z, ihit_list, nclus++, *my_data);
-          ihit_list.clear();
-        }
-      }
-      catch(const c10::Error &e)
-      {
-        std::cout << PHWHERE << "Error: Failed to execute NN modules" << std::endl;
-      }
     }
 
     //std::multimap<TrkrDefs::cluskey, TrkrDefs::hitkey> empty_map;
@@ -855,8 +676,6 @@ namespace
 
     adcval.clear();
     all_hit_map.clear();
-    adcval_copy.clear();
-    all_hit_map_copy.clear();
     hit_vect.clear();
     pthread_exit(nullptr);
   }

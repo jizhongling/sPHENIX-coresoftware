@@ -13,6 +13,7 @@ class TrainingHits: public PHObject
 
     static const int nd = 5;
     std::array<Short_t, (2*nd+1)*(2*nd+1)> v_adc;
+    Float_t radius;
     Float_t phi;
     Float_t z;
     Short_t layer;
