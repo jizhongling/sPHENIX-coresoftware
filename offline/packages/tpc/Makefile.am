@@ -26,7 +26,8 @@ pkginclude_HEADERS = \
   TpcDefs.h \
   TpcDistortionCorrection.h \
   TpcDistortionCorrectionContainer.h \
-  TpcLoadDistortionCorrection.h
+  TpcLoadDistortionCorrection.h \
+	 TpcSimpleClusterizer.h
 
 ROOTDICTS = \
   TrainingHitsContainer_Dict.cc \
@@ -41,7 +42,8 @@ nobase_dist_pcm_DATA = \
 libtpc_la_SOURCES = \
   TpcClusterCleaner.cc \
   TpcClusterizer.cc \
-  TpcLoadDistortionCorrection.cc
+  TpcLoadDistortionCorrection.cc \
+	 TpcSimpleClusterizer.cc
 
 libtpc_la_LIBADD = \
   libtpc_io.la \
