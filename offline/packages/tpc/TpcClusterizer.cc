@@ -60,7 +60,7 @@ namespace
   // Neural network parameters and modules
   bool use_nn = true;
   const int nd = 5;
-  const int nmax_truth = 5;
+  const int nmax_truth = 3;
   torch::jit::script::Module module_ntruth;
   torch::jit::script::Module module_pos[nmax_truth];
 
@@ -417,7 +417,7 @@ namespace
 	}
       // create the cluster entry directly in the node tree
       
-      const TrkrDefs::cluskey ckey = TpcDefs::genClusKey( my_data.hitset->getHitSetKey(), iclus );
+      const TrkrDefs::cluskey ckey = TpcDefs::genClusKey(my_data.hitset->getHitSetKey(), iclus++);
       TrkrClusterv3 *clus = new TrkrClusterv3();
       //auto clus = std::make_unique<TrkrClusterv3>();
       clus->setClusKey(ckey);
@@ -502,53 +502,122 @@ namespace
       
       int ntruth = 0;
       float nn_rphi[nmax_truth], nn_z[nmax_truth];
+      float nn_phi_sum[nmax_truth] = {0}, nn_z_sum[nmax_truth] = {0};
+      float nn_phi2_sum[nmax_truth] = {0}, nn_z2_sum[nmax_truth] = {0};
+      int nn_adc_sum[nmax_truth] = {0};
       TrkrDefs::cluskey nn_ckey[nmax_truth];
+
+      if(use_nn)
+      {
+        try
+        {
+          // Create a vector of inputs
+          std::vector<torch::jit::IValue> inputs;
+          inputs.emplace_back(torch::stack({
+                torch::from_blob(std::vector<float>(training_hits->v_adc.begin(), training_hits->v_adc.end()).data(), {1, 2*nd+1, 2*nd+1}, torch::kFloat32),
+                torch::full({1, 2*nd+1, 2*nd+1}, (training_hits->layer - 7) / 16, torch::kFloat32),
+                torch::full({1, 2*nd+1, 2*nd+1}, training_hits->z / radius, torch::kFloat32)
+                }, 1));
+
+          // Execute the model and turn its output into a tensor
+          ntruth = module_ntruth.forward(inputs).toTensor().argmax(1)[0].item<int>();
+          if(ntruth <= 1)
+          {
+            ntruth = 1;
+            nn_rphi[0] = radius * clusphi;
+            nn_z[0] = clusz;
+            nn_ckey[0] = ckey;
+          }
+          else
+          {
+            at::Tensor ten_pos = module_pos[ntruth-1].forward(inputs).toTensor();
+            for(int i=0; i<ntruth; i++)
+            {
+              float max_rphi = radius * my_data.layergeom->get_phistep() * nd;
+              float max_z = my_data.layergeom->get_zstep() * nd;
+              nn_rphi[i] = radius * training_hits->phi + std::clamp(ten_pos[0][0][i].item<float>(), -max_rphi, max_rphi);
+              nn_z[i] = training_hits->z + std::clamp(ten_pos[0][1][i].item<float>(), -max_z, max_z);
+              nn_ckey[i] = TpcDefs::genClusKey(my_data.hitset->getHitSetKey(), iclus++);
+            }
+          }
+        }
+        catch(const c10::Error &e)
+        {
+          std::cout << PHWHERE << "Error: Failed to execute NN modules" << std::endl;
+          return;
+        }
+
+        for(auto iter = ihit_list.begin(); iter != ihit_list.end(); iter++)
+        {
+          int adc = iter->first;
+          if (adc <= 0) continue;
+
+          int iphi = iter->second.first + my_data.phioffset;
+          int iz = iter->second.second + my_data.zoffset;
+
+          float phi = my_data.layergeom->get_phicenter(iphi);
+          float z = my_data.layergeom->get_zcenter(iz);
+
+          // apply drift velocity scale
+          /* this formula ensures that z remains unchanged when located on one of the readout plane, at either z_max or z_min */
+          z = z*my_data.m_drift_velocity_scale +
+            (z>0 ? z_max:z_min)*(1.-my_data.m_drift_velocity_scale);
+
+          float rphi = radius * phi;
+          std::vector<float> rphiz_diff;
+          for(int i=0; i<ntruth; i++)
+            rphiz_diff.emplace_back(square(rphi-nn_rphi[i]) + square(z-nn_z[i]));
+          int inn = std::min_element(rphiz_diff.begin(), rphiz_diff.end()) - rphiz_diff.begin();
+
+          nn_phi_sum[inn] += phi * adc;
+          nn_phi2_sum[inn] += square(phi) * adc;
+          nn_z_sum[inn] += z * adc;
+          nn_z2_sum[inn] += square(z) * adc;
+          nn_adc_sum[inn] += adc;
+
+          if(my_data.do_assoc)
+          {
+            TrkrDefs::hitkey hitkey = TpcDefs::genHitKey(iphi, iz);
+            my_data.association_vector->push_back(std::make_pair(nn_ckey[inn], hitkey));
+          }
+        }
+      } // use_nn
+
       if(my_data.clusterlist)     
 	{
           if(use_nn)
           {
-            try
-            {
-              // Create a vector of inputs
-              std::vector<torch::jit::IValue> inputs;
-              inputs.emplace_back(torch::stack({
-                    torch::from_blob(std::vector<float>(training_hits->v_adc.begin(), training_hits->v_adc.end()).data(), {1, 2*nd+1, 2*nd+1}, torch::kFloat32),
-                    torch::full({1, 2*nd+1, 2*nd+1}, (training_hits->layer - 7) / 16, torch::kFloat32),
-                    torch::full({1, 2*nd+1, 2*nd+1}, training_hits->z / radius, torch::kFloat32)
-                    }, 1));
-
-              // Execute the model and turn its output into a tensor
-              ntruth = module_ntruth.forward(inputs).toTensor().argmax(1)[0].item<int>();
-              if(ntruth >= 1 && ntruth <= nmax_truth)
+            for(int i=0; i<ntruth; i++)
+              if(nn_adc_sum[i] > 0)
               {
-                at::Tensor ten_pos = module_pos[ntruth-1].forward(inputs).toTensor();
-                for(int i=0; i<ntruth; i++)
-                {
-                  float max_rphi = radius * my_data.layergeom->get_phistep() * nd;
-                  float max_z = my_data.layergeom->get_zstep() * nd;
-                  nn_rphi[i] = radius * training_hits->phi + std::clamp(ten_pos[0][0][i].item<float>(), -max_rphi, max_rphi);
-                  nn_z[i] = training_hits->z + std::clamp(ten_pos[0][1][i].item<float>(), -max_z, max_z);
-                  nn_ckey[i] = TpcDefs::genClusKey( my_data.hitset->getHitSetKey(), iclus );
-                  TrkrClusterv3 *nn_clus = new TrkrClusterv3();
-                  nn_clus->CopyFrom(clus);
-                  clus->setClusKey(nn_ckey[i]);
-                  nn_clus->setLocalX(nn_rphi[i] - surfRphiCenter);
-                  nn_clus->setLocalY(nn_z[i] - surfZCenter);
-                  my_data.cluster_vector->push_back(nn_clus);
-                  iclus++;
-                }
+                const float nn_clusphi = nn_phi_sum[i] / nn_adc_sum[i];
+                const float nn_clusz = nn_z_sum[i] / nn_adc_sum[i];
+                const float nn_phi_cov = nn_phi2_sum[i] / nn_adc_sum[i] - square(nn_clusphi);
+                const float nn_z_cov = nn_z2_sum[i] / nn_adc_sum[i] - square(nn_clusz);
+                const float nn_phi_err_square = (phibinhi == phibinlo) ?
+                  square(radius*my_data.layergeom->get_phistep())/12:
+                  square(radius)*nn_phi_cov/(nn_adc_sum[i]*0.14);
+                const float nn_z_err_square = (zbinhi == zbinlo) ?
+                  square(my_data.layergeom->get_zstep())/12:
+                  nn_z_cov/(nn_adc_sum[i]*0.14);
+
+                TrkrClusterv3 *nn_clus = new TrkrClusterv3();
+                nn_clus->setClusKey(nn_ckey[i]);
+                nn_clus->setAdc(nn_adc_sum[i]);
+                nn_clus->setSubSurfKey(subsurfkey);
+                nn_clus->setLocalX(nn_rphi[i] - surfRphiCenter);
+                nn_clus->setLocalY(nn_z[i] - surfZCenter);
+                nn_clus->setActsLocalError(0,0, nn_phi_err_square);
+                nn_clus->setActsLocalError(1,0, 0.);
+                nn_clus->setActsLocalError(0,1, 0.);
+                nn_clus->setActsLocalError(1,1, nn_z_err_square);
+                my_data.cluster_vector->push_back(nn_clus);
               }
-            }
-            catch(const c10::Error &e)
-            {
-              std::cout << PHWHERE << "Error: Failed to execute NN modules" << std::endl;
-            }
             delete clus;
           } // use_nn
           else
           {
 	  my_data.cluster_vector->push_back(clus);
-          iclus++;
 	  /*
 	   * if cluster was properly inserted in the map, one should release the unique_ptr,
 	   * to make sure that the cluster is not deleted when going out-of-scope
@@ -568,23 +637,10 @@ namespace
 	}
 
       //      if(my_data.do_assoc && my_data.clusterhitassoc){
-      if(my_data.do_assoc){
+      if(!use_nn && my_data.do_assoc){
 	//std::cout << "filling assoc" << std::endl;
 	for (unsigned int i = 0; i < hitkeyvec.size(); i++){
-          if(use_nn)
-          {
-            float hit_rphi = radius * my_data.layergeom->get_phicenter(TpcDefs::getPad(hitkeyvec[i]));
-            float hit_z = my_data.layergeom->get_zcenter(TpcDefs::getTBin(hitkeyvec[i]));
-            std::vector<float> hit_diff;
-            for(int j=0; j<ntruth; j++)
-              hit_diff.emplace_back(square(hit_rphi-nn_rphi[j]) + square(hit_z-nn_z[j]));
-            int imin = std::min_element(hit_diff.begin(), hit_diff.end()) - hit_diff.begin();
-            my_data.association_vector->push_back(std::make_pair(nn_ckey[imin], hitkeyvec[i]));
-          }
-          else
-          {
 	  my_data.association_vector->push_back(std::make_pair(ckey, hitkeyvec[i]));
-          }
 	}
       }
       hitkeyvec.clear();
