@@ -1,10 +1,8 @@
 #include "PHTruthTrackSeeding.h"
 
-#include "AssocInfoContainer.h"
-
 #include <trackbase_historic/SvtxTrack.h>     // for SvtxTrack, SvtxTra...
 #include <trackbase_historic/SvtxTrackMap.h>  // for SvtxTrackMap, Svtx...
-#include <trackbase_historic/SvtxTrack_FastSim_v2.h>
+#include <trackbase_historic/SvtxTrack_FastSim_v3.h>
 
 #include <trackbase/TrkrCluster.h>
 #include <trackbase/TrkrClusterContainer.h>
@@ -121,7 +119,7 @@ int PHTruthTrackSeeding::Process(PHCompositeNode* topNode)
     if(ClusterKeyList.size()< _min_clusters_per_track)
       continue;
 
-    auto svtx_track = std::make_unique<SvtxTrack_FastSim_v2>();
+    auto svtx_track = std::make_unique<SvtxTrack_FastSim_v3>();
     svtx_track->set_id(_track_map->size());
     svtx_track->set_truth_track_id(gtrackID);
     ///g4 vertex id starts at 1, svtx vertex map starts at 0
@@ -159,7 +157,6 @@ int PHTruthTrackSeeding::Process(PHCompositeNode* topNode)
       
     for (TrkrDefs::cluskey cluskey : ClusterKeyList){
       svtx_track->insert_cluster_key(cluskey);
-      _assoc_container->SetClusterTrackAssoc(cluskey,svtx_track->get_id());
     }
 
     if(m_helicalTrackFit)

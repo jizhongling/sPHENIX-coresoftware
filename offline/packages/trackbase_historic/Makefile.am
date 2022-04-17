@@ -21,6 +21,10 @@ AM_LDFLAGS = \
 
 pkginclude_HEADERS = \
   ActsTransformations.h \
+  TrackSeed.h \
+  TrackSeed_v1.h \
+  TrackSeedContainer.h \
+  TrackSeedContainer_v1.h \
   PHG4ParticleSvtxMap.h \
   PHG4ParticleSvtxMap_v1.h \
   SvtxPHG4ParticleMap.h \
@@ -28,9 +32,11 @@ pkginclude_HEADERS = \
   SvtxTrack.h \
   SvtxTrack_v1.h \
   SvtxTrack_v2.h \
+  SvtxTrack_v3.h \
   SvtxTrack_FastSim.h \
   SvtxTrack_FastSim_v1.h \
   SvtxTrack_FastSim_v2.h \
+  SvtxTrack_FastSim_v3.h \
   SvtxTrackMap.h \
   SvtxTrackMap_v1.h \
   SvtxTrackState.h \
@@ -41,6 +47,10 @@ pkginclude_HEADERS = \
   SvtxVertexMap_v1.h 
 
 ROOTDICTS = \
+  TrackSeed_Dict.cc \
+  TrackSeed_v1_Dict.cc \
+  TrackSeedContainer_Dict.cc \
+  TrackSeedContainer_v1_Dict.cc \
   PHG4ParticleSvtxMap_Dict.cc \
   PHG4ParticleSvtxMap_v1_Dict.cc \
   SvtxPHG4ParticleMap_Dict.cc \
@@ -50,9 +60,11 @@ ROOTDICTS = \
   SvtxTrackState_v1_Dict.cc \
   SvtxTrack_v1_Dict.cc \
   SvtxTrack_v2_Dict.cc \
+  SvtxTrack_v3_Dict.cc \
   SvtxTrack_FastSim_Dict.cc \
   SvtxTrack_FastSim_v1_Dict.cc \
   SvtxTrack_FastSim_v2_Dict.cc \
+  SvtxTrack_FastSim_v3_Dict.cc \
   SvtxTrackMap_Dict.cc \
   SvtxTrackMap_v1_Dict.cc \
   SvtxVertex_Dict.cc \
@@ -62,6 +74,10 @@ ROOTDICTS = \
 
 pcmdir = $(libdir)
 nobase_dist_pcm_DATA = \
+  TrackSeed_Dict_rdict.pcm \
+  TrackSeed_v1_Dict_rdict.pcm \
+  TrackSeedContainer_Dict_rdict.pcm \
+  TrackSeedContainer_v1_Dict_rdict.pcm \
   PHG4ParticleSvtxMap_Dict_rdict.pcm \
   PHG4ParticleSvtxMap_v1_Dict_rdict.pcm \
   SvtxPHG4ParticleMap_Dict_rdict.pcm \
@@ -71,9 +87,11 @@ nobase_dist_pcm_DATA = \
   SvtxTrackState_v1_Dict_rdict.pcm \
   SvtxTrack_v1_Dict_rdict.pcm \
   SvtxTrack_v2_Dict_rdict.pcm \
+  SvtxTrack_v3_Dict_rdict.pcm \
   SvtxTrack_FastSim_Dict_rdict.pcm \
   SvtxTrack_FastSim_v1_Dict_rdict.pcm \
   SvtxTrack_FastSim_v2_Dict_rdict.pcm \
+  SvtxTrack_FastSim_v3_Dict_rdict.pcm \
   SvtxTrackMap_Dict_rdict.pcm \
   SvtxTrackMap_v1_Dict_rdict.pcm \
   SvtxVertex_Dict_rdict.pcm \
@@ -85,6 +103,10 @@ nobase_dist_pcm_DATA = \
 libtrackbase_historic_io_la_SOURCES = \
   $(ROOTDICTS) \
   ActsTransformations.cc \
+  TrackSeed.cc \
+  TrackSeed_v1.cc \
+  TrackSeedContainer.cc \
+  TrackSeedContainer_v1.cc \
   PHG4ParticleSvtxMap.cc \
   PHG4ParticleSvtxMap_v1.cc \
   SvtxPHG4ParticleMap.cc \
@@ -93,9 +115,11 @@ libtrackbase_historic_io_la_SOURCES = \
   SvtxTrack.cc \
   SvtxTrack_v1.cc \
   SvtxTrack_v2.cc \
+  SvtxTrack_v3.cc \
   SvtxTrack_FastSim.cc \
   SvtxTrack_FastSim_v1.cc \
   SvtxTrack_FastSim_v2.cc \
+  SvtxTrack_FastSim_v3.cc \
   SvtxTrackMap.cc \
   SvtxTrackMap_v1.cc \
   SvtxVertex.cc \

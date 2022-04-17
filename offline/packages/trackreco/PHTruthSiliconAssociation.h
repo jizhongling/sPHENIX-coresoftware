@@ -21,8 +21,8 @@ class TrkrHitTruthAssoc;
 class PHG4TruthInfoContainer;
 class PHG4HitContainer;
 class PHG4Particle;
-class AssocInfoContainer;
 class TpcSeedTrackMap;
+class TrkrClusterCrossingAssoc;
 
 class PHTruthSiliconAssociation : public SubsysReco
 {
@@ -59,7 +59,8 @@ class PHTruthSiliconAssociation : public SubsysReco
 
   std::vector<PHG4Particle*> getG4PrimaryParticle(SvtxTrack *track);
   std::set<TrkrDefs::cluskey> getSiliconClustersFromParticle(PHG4Particle* g4particle);
-  
+  std::vector<short int> getInttCrossings(SvtxTrack *si_track);
+
   PHG4TruthInfoContainer* _g4truth_container{nullptr};
   PHG4HitContainer *_g4hits_tpc{nullptr};
   PHG4HitContainer *_g4hits_mvtx{nullptr};
@@ -71,10 +72,10 @@ class PHTruthSiliconAssociation : public SubsysReco
   TrkrClusterHitAssoc *_cluster_hit_map{nullptr};
   TrkrHitTruthAssoc *_hit_truth_map{nullptr};
   SvtxTrackMap *_track_map{nullptr};
-  AssocInfoContainer *_assoc_container{nullptr};
   SvtxTrack *_tracklet{nullptr};
   SvtxVertexMap * _vertex_map{nullptr};
   TpcSeedTrackMap *_seed_track_map{nullptr};
+ TrkrClusterCrossingAssoc *_cluster_crossing_map{nullptr};
 
  std::string _tpcseed_track_map_name = "TpcSeedTrackMap";
 

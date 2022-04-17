@@ -13,10 +13,10 @@
 #include <trackbase/TrkrHit.h>
 #include <trackbase/TrkrHitSet.h>
 #include <trackbase/TrkrHitSetContainer.h>
+#include <trackbase/InttDefs.h>
+#include <trackbase/MvtxDefs.h>
 
 #include <tpc/TpcDefs.h>
-#include <intt/InttDefs.h>
-#include <mvtx/MvtxDefs.h>
 #include <micromegas/MicromegasDefs.h>
 
 #include <g4main/PHG4TruthInfoContainer.h>
@@ -199,10 +199,8 @@ int PHTruthClustering::process_event(PHCompositeNode* topNode)
 
 	  if(trkrId == TrkrDefs::tpcId)
 	    {
-	      // add the filled out cluster to the truth cluster node for the TPC (and MM's)
-	      TrkrClusterContainer::ConstIterator iter = m_clusterlist->addCluster(gclus);
-	      if(iter->first != ckey)
-		std::cout << PHWHERE << " -------  Problem:  ckey = " << ckey<< " returned key " << iter->first << std::endl;
+        // add the filled out cluster to the truth cluster node for the TPC (and MM's)
+        m_clusterlist->addCluster(gclus);
 	    }
 	}
     }
@@ -228,9 +226,7 @@ int PHTruthClustering::process_event(PHCompositeNode* topNode)
 	  cluster->identify();
 	}
       
-      TrkrClusterContainer::ConstIterator iter = m_clusterlist->addCluster(cluster);    
-      if(iter->first != cluskey)
-	std::cout << PHWHERE << " -------  Problem:  cluskey = " << cluskey<< " returned key " << iter->first << std::endl;
+       m_clusterlist->addCluster(cluster);    
     }
   }
 
@@ -293,14 +289,16 @@ std::map<unsigned int, TrkrCluster* > PHTruthClustering::all_truth_clusters(PHG4
 	{
 	  unsigned int stave = 0;
 	  unsigned int chip = 0;
-	  ckey = MvtxDefs::genClusKey(layer, stave, chip, iclus);
+	  unsigned int strobe = 0;
+	  ckey = MvtxDefs::genClusKey(layer, stave, chip, strobe, iclus);
 	}
       else if(layer >= _nlayers_maps && layer < _nlayers_maps  + _nlayers_intt)  // in INTT
 	{
 	  // dummy ladder and phi ID
 	  unsigned int ladderzid = 0;
 	  unsigned int ladderphiid = 0;
-	  ckey = InttDefs::genClusKey(layer, ladderzid, ladderphiid,iclus); 
+	  int crossing = 0;
+	  ckey = InttDefs::genClusKey(layer, ladderzid, ladderphiid,crossing,iclus); 
 	}
       else if(layer >= _nlayers_maps + _nlayers_intt + _nlayers_tpc)    // in MICROMEGAS
 	{
@@ -308,7 +306,7 @@ std::map<unsigned int, TrkrCluster* > PHTruthClustering::all_truth_clusters(PHG4
 	  MicromegasDefs::SegmentationType segtype;
 	  segtype  =  MicromegasDefs::SegmentationType::SEGMENTATION_PHI;
 	  TrkrDefs::hitsetkey hkey = MicromegasDefs::genHitSetKey(layer, segtype, tile);
-  	  ckey = MicromegasDefs::genClusterKey(hkey, iclus);
+    ckey = TrkrDefs::genClusKey(hkey, iclus);
 	}
       else
 	{

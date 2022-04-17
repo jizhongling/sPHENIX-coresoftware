@@ -14,10 +14,11 @@
 #include <trackbase/TrkrDefs.h>
 #include <trackbase/TrkrClusterHitAssocv2.h>
 #include <trackbase/TrkrHitTruthAssoc.h>
-#include <trackbase_historic/SvtxTrack_v2.h>
+#include <trackbase_historic/SvtxTrack_v3.h>
 #include <trackbase_historic/SvtxTrackMap.h>
 #include <trackbase_historic/SvtxVertexMap.h>
 #include <trackbase/TpcSeedTrackMapv1.h>    
+#include <trackbase/TrkrClusterCrossingAssoc.h> 
 
 #include <g4main/PHG4Hit.h>  // for PHG4Hit
 #include <g4main/PHG4Particle.h>  // for PHG4Particle
@@ -25,8 +26,6 @@
 #include <g4main/PHG4HitDefs.h>  // for keytype
 #include <g4main/PHG4TruthInfoContainer.h>
 #include <g4main/PHG4VtxPoint.h>
-
-#include "AssocInfoContainer.h"
 
 using namespace std;
 
@@ -123,7 +122,9 @@ int PHTruthSiliconAssociation::process_event(PHCompositeNode */*topNode*/)
       std::vector<SvtxTrack*> extraTrack; 
       for(unsigned int ig4=0;ig4 < g4particle_vec.size()-1; ++ig4)
 	{      
-	  SvtxTrack *newTrack = new SvtxTrack_v2();
+	  //	  float time = g4particle_vec[ig4]->
+
+	  SvtxTrack *newTrack = new SvtxTrack_v3();
 	  // Not the first g4particle in the list, we need to add a new copy of the track to the track map and add the silicon clusters to that
 	  const unsigned int lastTrackKey = ( _track_map->empty() ? 0:std::prev(_track_map->end())->first ) + ig4;
 	  //std::cout << "   extra track key " << lastTrackKey + 1 << std::endl;
@@ -184,7 +185,6 @@ int PHTruthSiliconAssociation::process_event(PHCompositeNode */*topNode*/)
 	    {
 	      if (Verbosity() >= 1)  std::cout << "            cluster belongs to MVTX or INTT, add to track " << std::endl;
 	      _tracklet->insert_cluster_key(cluster_key);
-	      _assoc_container->SetClusterTrackAssoc(cluster_key, _tracklet->get_id());
 	    }
 	}
       
@@ -243,7 +243,6 @@ int PHTruthSiliconAssociation::process_event(PHCompositeNode */*topNode*/)
 		    {
 		      if (Verbosity() >= 1)  std::cout << "            cluster belongs to MVTX or INTT, add to track " << std::endl;
 		      extraTrack[ig4]->insert_cluster_key(cluster_key);
-		      _assoc_container->SetClusterTrackAssoc(cluster_key, extraTrack[ig4]->get_id());
 		    }
 		}
 
@@ -272,7 +271,40 @@ int PHTruthSiliconAssociation::process_event(PHCompositeNode */*topNode*/)
   // loop over all tracks and copy the silicon clusters to the corrected cluster map
   if(_corrected_cluster_map)
     copySiliconClustersToCorrectedMap();
+
+  // loop over all tracks and get the bunch crossing from the INTT cluster - crossing map and add it to the track
+  for (auto phtrk_iter = _track_map->begin();
+       phtrk_iter != _track_map->end(); 
+       ++phtrk_iter)
+    {
+      SvtxTrack *track = phtrk_iter->second;
+      std::vector<short int > intt_crossings = getInttCrossings(track);
+      if(intt_crossings.size() == 0) 
+	{
+	  if(Verbosity() > 1) std::cout << " Silicon track " << track->get_id() << " has no INTT clusters" << std::endl;
+	  continue ;
+	}
+
+      short int crossing_keep = intt_crossings[0];
+      bool keep_it = true;
+      for(unsigned int ic=1; ic<intt_crossings.size(); ++ic)
+	{	  
+	  if(intt_crossings[ic] != crossing_keep)
+	    {
+	      if(Verbosity() > 1) 
+		std::cout << " INTT crossings not all the same for track " << track->get_id() << " crossing_keep " 
+			  << crossing_keep << " new crossing " << intt_crossings[ic] << "- dropping this match " << std::endl;
+	      keep_it = false;	      
+	    }
+	}
+      if(keep_it)
+	{            
+	  track->set_crossing(crossing_keep);
+	  if(Verbosity() > 1) std::cout << "                    Combined track " << track->get_id()  << " bunch crossing " << crossing_keep  << std::endl;           
+	}
+    }
   
+
   if (Verbosity() >= 1)
     cout << "PHTruthSiliconAssociation::process_event(PHCompositeNode *topNode) Leaving process_event" << endl;  
   
@@ -323,6 +355,13 @@ int  PHTruthSiliconAssociation::GetNodes(PHCompositeNode* topNode)
       return Fun4AllReturnCodes::ABORTEVENT;
     }
 
+  _cluster_crossing_map = findNode::getClass<TrkrClusterCrossingAssoc>(topNode, "TRKR_CLUSTERCROSSINGASSOC");
+  if (!_cluster_crossing_map)
+  {
+    cerr << PHWHERE << " ERROR: Can't find TRKR_CLUSTERCROSSINGASSOC " << endl;
+    return Fun4AllReturnCodes::ABORTEVENT;
+  }
+
   _corrected_cluster_map = findNode::getClass<TrkrClusterContainer>(topNode,"CORRECTED_TRKR_CLUSTER");
   if(_corrected_cluster_map)
     {
@@ -347,13 +386,6 @@ int  PHTruthSiliconAssociation::GetNodes(PHCompositeNode* topNode)
   if (!_track_map)
   {
     cerr << PHWHERE << " ERROR: Can't find SvtxTrackMap: " << endl;
-    return Fun4AllReturnCodes::ABORTEVENT;
-  }
-
-  _assoc_container = findNode::getClass<AssocInfoContainer>(topNode, "AssocInfoContainer");
-  if (!_assoc_container)
-  {
-    cerr << PHWHERE << " ERROR: Can't find AssocInfoContainer." << endl;
     return Fun4AllReturnCodes::ABORTEVENT;
   }
 
@@ -550,35 +582,65 @@ std::set<TrkrDefs::cluskey> PHTruthSiliconAssociation::getSiliconClustersFromPar
 void PHTruthSiliconAssociation::copySiliconClustersToCorrectedMap( )
 {
   // loop over final track map, copy silicon clusters to corrected cluster map
-  for (auto phtrk_iter = _track_map->begin();
-       phtrk_iter != _track_map->end(); 
-       ++phtrk_iter)
+  for( auto track_iter = _track_map->begin(); track_iter != _track_map->end(); ++track_iter )
+  {
+    SvtxTrack* track = track_iter->second;
+    // loop over associated clusters to get keys for micromegas cluster
+    for(auto iter = track->begin_cluster_keys(); iter != track->end_cluster_keys(); ++iter)
     {
-      SvtxTrack *track = phtrk_iter->second;
+      TrkrDefs::cluskey cluster_key = *iter;
+      const unsigned int trkrid = TrkrDefs::getTrkrId(cluster_key);
+      if(trkrid == TrkrDefs::mvtxId || trkrid == TrkrDefs::inttId)
+      {
+        // check if clusters has not been inserted already
+        if( _corrected_cluster_map->findCluster( cluster_key ) ) continue;
 
-      // loop over associated clusters to get keys for silicon cluster
-      for (SvtxTrack::ConstClusterKeyIter iter = track->begin_cluster_keys();
-	   iter != track->end_cluster_keys();
-	   ++iter)
+        auto cluster = _cluster_map->findCluster(cluster_key);	
+        if( !cluster ) continue;
+        
+        // create a new cluster and copy from source
+        auto newclus = new TrkrClusterv3;
+        newclus->CopyFrom( cluster );
+
+        // insert in corrected map
+        _corrected_cluster_map->addCluster(newclus);
+      }
+    }      
+  }
+}
+
+std::vector<short int> PHTruthSiliconAssociation::getInttCrossings(SvtxTrack *si_track)
+{
+  std::vector<short int> intt_crossings;
+
+  // If the Si track contains an INTT hit, use it to get the bunch crossing offset
+  // loop over associated clusters to get keys for silicon cluster
+  for (SvtxTrack::ConstClusterKeyIter iter = si_track->begin_cluster_keys();
+       iter != si_track->end_cluster_keys();
+       ++iter)
+    {
+      
+      TrkrDefs::cluskey cluster_key = *iter;
+      const unsigned int trkrid = TrkrDefs::getTrkrId(cluster_key);
+      if(trkrid == TrkrDefs::inttId)
 	{
-	  TrkrDefs::cluskey cluster_key = *iter;
-	  unsigned int trkrid = TrkrDefs::getTrkrId(cluster_key);
-	  if(trkrid == TrkrDefs::mvtxId || trkrid == TrkrDefs::inttId)
-	    {
-	      TrkrCluster *cluster =  _cluster_map->findCluster(cluster_key);	
-	      TrkrCluster *newclus = _corrected_cluster_map->findOrAddCluster(cluster_key)->second;
+	  // std::cout << "      INTT cluster key " << cluster_key << std::endl; 
 	  
-	      newclus->setSubSurfKey(cluster->getSubSurfKey());
-	      newclus->setAdc(cluster->getAdc());
-	      
-	      newclus->setActsLocalError(0,0,cluster->getActsLocalError(0,0));
-	      newclus->setActsLocalError(1,0,cluster->getActsLocalError(1,0));
-	      newclus->setActsLocalError(0,1,cluster->getActsLocalError(0,1));
-	      newclus->setActsLocalError(1,1,cluster->getActsLocalError(1,1));
-	      
-	      newclus->setLocalX(cluster->getLocalX());
-	      newclus->setLocalY(cluster->getLocalY());
+	  TrkrCluster *cluster =  _cluster_map->findCluster(cluster_key);	
+	  if( !cluster ) continue;	  
+	  
+	  unsigned int layer = TrkrDefs::getLayer(cluster_key);
+	  
+	  // get the bunch crossings for all hits in this cluster
+	  auto crossings = _cluster_crossing_map->getCrossings(cluster_key);
+	  for(auto iter = crossings.first; iter != crossings.second; ++iter)
+	    {
+	      std::cout << "      si Track " << si_track->get_id() << " cluster " << iter->first << " layer " << layer << " crossing " << iter->second  << std::endl;
+	      intt_crossings.push_back(iter->second);
 	    }
-	}      
+	}
     }
+  //      std::cout << " intt_crossings size is " << intt_crossings.size() << std::endl;
+  
+  return intt_crossings;
 }

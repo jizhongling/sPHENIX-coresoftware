@@ -23,6 +23,7 @@ pkginclude_HEADERS = \
   TrainingHits.h \
   TpcClusterCleaner.h \
   TpcClusterizer.h \
+  TpcClusterZCrossingCorrection.h \
   TpcDefs.h \
   TpcDistortionCorrection.h \
   TpcDistortionCorrectionContainer.h \
@@ -60,7 +61,8 @@ libtpc_io_la_SOURCES = \
   TrainingHitsContainer.cc \
   TrainingHits.cc \
   TpcDefs.cc \
-  TpcDistortionCorrection.cc
+  TpcDistortionCorrection.cc \
+  TpcClusterZCrossingCorrection.cc
 
 libtpc_io_la_LIBADD = \
   -ltrack_io \
