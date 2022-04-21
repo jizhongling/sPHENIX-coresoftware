@@ -17,6 +17,8 @@ class TrainingHits: public PHObject
     Float_t phi;
     Float_t z;
     Short_t layer;
+    Short_t ntouch;
+    Short_t nedge;
 
     ClassDefOverride(TrainingHits, 1)
 };

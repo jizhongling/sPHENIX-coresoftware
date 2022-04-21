@@ -70,9 +70,8 @@ class TpcClusterizer : public SubsysReco
   // From Tony Frawley May 13, 2021
   double par0_neg = 0.0503;
   double par0_pos = -0.0503;
-
-  TrainingHitsContainer *m_training;
   
+  TrainingHitsContainer *m_training;
 };
 
 #endif

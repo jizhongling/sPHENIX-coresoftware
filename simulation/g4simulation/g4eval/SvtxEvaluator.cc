@@ -8,7 +8,8 @@
 #include "SvtxTruthEval.h"
 #include "SvtxVertexEval.h"
 
-#include <trackbase/TrkrCluster.h>
+#include <trackbase/TrkrClusterv3.h>
+#include <trackbase/TrkrClusterv4.h>
 #include <trackbase/TrkrHit.h>
 #include <trackbase/TrkrHitSetContainer.h>
 #include <trackbase/TrkrDefs.h>
@@ -170,6 +171,8 @@ int SvtxEvaluator::Init(PHCompositeNode* /*topNode*/)
     _t_training = new TTree("t_training", "Training hits");
     _t_training->Branch("event", &training_event);
     _t_training->Branch("layer", &training_layer);
+    _t_training->Branch("ntouch", &training_ntouch);
+    _t_training->Branch("nedge", &training_nedge);
     _t_training->Branch("radius", &training_radius);
     _t_training->Branch("phi", &training_phi);
     _t_training->Branch("z", &training_z);
@@ -179,7 +182,7 @@ int SvtxEvaluator::Init(PHCompositeNode* /*topNode*/)
   if (_do_cluster_eval) _ntp_cluster = new TNtuple("ntp_cluster", "svtxcluster => max truth",
                                                    "event:seed:hitID:x:y:z:r:phi:eta:theta:ex:ey:ez:ephi:"
                                                    "e:adc:maxadc:layer:phielem:zelem:size:"
-                                                   "trackID:niter:g4hitID:gx:"
+                                                   "trackID:niter:ntouch:nedge:g4hitID:gx:"
                                                    "gy:gz:gr:gphi:geta:gt:gtrackID:gflavor:"
                                                    "gpx:gpy:gpz:gvx:gvy:gvz:gvt:"
                                                    "gfpx:gfpy:gfpz:gfx:gfy:gfz:"
@@ -1756,6 +1759,8 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
       {
         training_event = _ievent;
         training_layer = hits.layer;
+        training_ntouch = hits.ntouch;
+        training_nedge = hits.nedge;
         training_radius = hits.radius;
         training_phi = hits.phi;
         training_z = hits.z;
@@ -1821,6 +1826,13 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 	  float niter = 0;
 	  if(_iteration_map!=NULL)
 	    niter = _iteration_map->getIteration(cluster_key);
+          auto clusterv4 = dynamic_cast<TrkrClusterv4*>(cluster);
+          float ntouch = NAN;
+          float nedge = NAN;
+          if(clusterv4){
+            ntouch = clusterv4->getOverlap();
+            nedge = clusterv4->getEdge();
+          }
 	  float hitID = (float) cluster_key;
 	  auto cglob = actsTransformer.getGlobalPosition(cluster,surfmaps,tgeometry);
 	  float x = cglob(0);
@@ -2000,6 +2012,8 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 				  size,
 				  trackID,
 				  niter,
+                                  ntouch,
+                                  nedge,
 				  g4hitID,
 				  gx,
 				  gy,

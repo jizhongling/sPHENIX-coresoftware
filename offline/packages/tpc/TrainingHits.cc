@@ -12,4 +12,6 @@ void TrainingHits::Reset()
   phi = 0.;
   z = 0.;
   layer = 0;
+  ntouch = 0;
+  nedge = 0;
 }
