@@ -216,6 +216,13 @@ class TrackEvaluationContainerv1: public TrackEvaluationContainer
     float eta = 0;
     //@}
 
+    //!@name path
+    //@{
+    float R = 0;
+    float X0 = 0;
+    float Y0 = 0;
+    //@}
+
     //!@name truth momentum
     //@{
     int pid = 0;

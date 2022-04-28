@@ -7,6 +7,7 @@
 /// \author Michael P. McCumber (revised SVTX version)
 //===============================================
 
+#include "TrackEvaluationContainerv1.h"
 #include <fun4all/SubsysReco.h>
 
 #include <string>
@@ -63,6 +64,7 @@ class SvtxEvaluator : public SubsysReco
   void do_g4cluster_eval(bool b) { _do_g4cluster_eval = b; }
   void do_gtrack_eval(bool b) { _do_gtrack_eval = b; }
   void do_track_eval(bool b) { _do_track_eval = b; }
+  void do_trackeval_eval(bool b) { _do_trackeval_eval = b; }
   void do_gseed_eval(bool b) { _do_gseed_eval = b; }
 
   void do_track_match(bool b) { _do_track_match = b; }
@@ -101,6 +103,7 @@ class SvtxEvaluator : public SubsysReco
   bool _do_g4cluster_eval;
   bool _do_gtrack_eval;
   bool _do_track_eval;
+  bool _do_trackeval_eval;
   bool _do_gseed_eval;
 
   bool _do_track_match;
@@ -134,6 +137,9 @@ class SvtxEvaluator : public SubsysReco
   Float_t training_phi;
   Float_t training_z;
   std::array<Short_t, 11*11> training_adc;
+
+  TTree *_t_trackeval;
+  TrackEvaluationContainerv1::TrackStruct::List v_tracks;
 
   // evaluator output file
   std::string _filename;

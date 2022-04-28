@@ -86,6 +86,7 @@ SvtxEvaluator::SvtxEvaluator(const string& /*name*/, const string& filename, con
   , _do_g4cluster_eval(true)
   , _do_gtrack_eval(true)
   , _do_track_eval(true)
+  , _do_trackeval_eval(true)
   , _do_gseed_eval(false)
   , _do_track_match(true)
   , _do_eval_light(true)
@@ -107,6 +108,7 @@ SvtxEvaluator::SvtxEvaluator(const string& /*name*/, const string& filename, con
   , _ntp_track(nullptr)
   , _ntp_gseed(nullptr)
   , _t_training(nullptr)
+  , _t_trackeval(nullptr)
   , _filename(filename)
   , _trackmapname(trackmapname)
   , _tfile(nullptr)
@@ -177,6 +179,11 @@ int SvtxEvaluator::Init(PHCompositeNode* /*topNode*/)
     _t_training->Branch("phi", &training_phi);
     _t_training->Branch("z", &training_z);
     _t_training->Branch("adc", &training_adc);
+  }
+
+  if (_do_trackeval_eval) {
+    _t_trackeval = new TTree("t_trackeval", "Track evaluation");
+    _t_trackeval->Branch("tracks", &v_tracks);
   }
 
   if (_do_cluster_eval) _ntp_cluster = new TNtuple("ntp_cluster", "svtxcluster => max truth",
@@ -316,6 +323,7 @@ int SvtxEvaluator::End(PHCompositeNode* /*topNode*/)
   if (_ntp_g4cluster) _ntp_g4cluster->Write();
   if (_ntp_gtrack) _ntp_gtrack->Write();
   if (_ntp_track) _ntp_track->Write();
+  if (_t_trackeval) _t_trackeval->Write();
   if (_ntp_gseed) _ntp_gseed->Write();
 
   _tfile->Close();
@@ -3419,6 +3427,18 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
       _timer->stop();
       cout << "track time:                " << _timer->get_accumulated_time() / 1000. << " sec" << endl;
     }
+  }
+
+  //------------------------
+  // fill the Track Evaluation TTree
+  //------------------------
+
+  if (_t_trackeval)
+  {
+    auto trackeval = findNode::getClass<TrackEvaluationContainerv1>(topNode, "TrackEvaluationContainer");
+    if (trackeval)
+      v_tracks = trackeval->tracks();
+    _t_trackeval->Fill();
   }
 
   //---------------------
