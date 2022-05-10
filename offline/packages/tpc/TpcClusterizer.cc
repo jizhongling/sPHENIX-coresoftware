@@ -576,6 +576,7 @@ namespace
         for (unsigned int i = 0; i < hitkeyvec.size(); i++){
           my_data.association_vector.emplace_back(index, hitkeyvec[i]);
         }
+        training_hits->cluskey = TrkrDefs::genClusKey(tpcHitSetKey, index);
       }
       hitkeyvec.clear();
       my_data.v_hits.emplace_back(training_hits);

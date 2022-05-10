@@ -10,6 +10,7 @@
  */
 
 #include "TrackEvaluationContainer.h"
+#include <trackbase/TrkrDefs.h>
 
 #include <vector>
 
@@ -80,6 +81,9 @@ class TrackEvaluationContainerv1: public TrackEvaluationContainer
     public:
 
     using List = std::vector<ClusterStruct>;
+
+    //! cluster key
+    TrkrDefs::cluskey key = 0;
 
     //! cluster layer
     unsigned int layer = 0;

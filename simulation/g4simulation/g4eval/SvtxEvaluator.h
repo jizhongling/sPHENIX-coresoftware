@@ -9,6 +9,7 @@
 
 #include "TrackEvaluationContainerv1.h"
 #include <fun4all/SubsysReco.h>
+#include <trackbase/TrkrDefs.h>
 
 #include <string>
 #include <array>
@@ -130,6 +131,7 @@ class SvtxEvaluator : public SubsysReco
 
   TTree *_t_training;
   Short_t training_event;
+  TrkrDefs::cluskey training_cluskey;
   Short_t training_layer;
   Short_t training_ntouch;
   Short_t training_nedge;

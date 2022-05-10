@@ -172,6 +172,7 @@ int SvtxEvaluator::Init(PHCompositeNode* /*topNode*/)
   if (_do_training_eval) {
     _t_training = new TTree("t_training", "Training hits");
     _t_training->Branch("event", &training_event);
+    _t_training->Branch("cluskey", &training_cluskey);
     _t_training->Branch("layer", &training_layer);
     _t_training->Branch("ntouch", &training_ntouch);
     _t_training->Branch("nedge", &training_nedge);
@@ -1769,6 +1770,7 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
       for(const auto &hits : training_container->v_hits)
       {
         training_event = _ievent;
+        training_cluskey = hits.cluskey;
         training_layer = hits.layer;
         training_ntouch = hits.ntouch;
         training_nedge = hits.nedge;

@@ -2,6 +2,7 @@
 #define TRAININGHITS_H
 
 #include <phool/PHObject.h>
+#include <trackbase/TrkrDefs.h>
 #include <array>
 
 class TrainingHits: public PHObject
@@ -19,6 +20,7 @@ class TrainingHits: public PHObject
     Short_t layer;
     Short_t ntouch;
     Short_t nedge;
+    TrkrDefs::cluskey cluskey;
 
     ClassDefOverride(TrainingHits, 1)
 };

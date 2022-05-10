@@ -14,4 +14,5 @@ void TrainingHits::Reset()
   layer = 0;
   ntouch = 0;
   nedge = 0;
+  cluskey = 0;
 }

@@ -802,6 +802,7 @@ TrackEvaluationContainerv1::ClusterStruct TrackEvaluation::create_cluster( TrkrD
   const auto global = m_transformer.getGlobalPosition(key, cluster,m_surfmaps, m_tGeometry);
 
   TrackEvaluationContainerv1::ClusterStruct cluster_struct;
+  cluster_struct.key = key;
   cluster_struct.layer = TrkrDefs::getLayer(key);
   cluster_struct.x = global.x();
   cluster_struct.y = global.y();
