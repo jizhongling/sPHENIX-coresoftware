@@ -512,12 +512,14 @@ namespace
       
       // we need the cluster key and all associated hit keys (note: the cluster key includes the hitset key)
       
+      TrkrCluster *clus_base = nullptr;
       if(my_data.cluster_version==3){
 	
 	// Fill in the cluster details
 	//================
 	auto clus = new TrkrClusterv3;
 	//auto clus = std::make_unique<TrkrClusterv3>();
+        clus_base = clus;
 	clus->setAdc(adc_sum);      
 	clus->setSubSurfKey(subsurfkey);      
 	clus->setLocalX(localPos(0));
@@ -530,6 +532,7 @@ namespace
       }else if(my_data.cluster_version==4){
 	auto clus = new TrkrClusterv4;
 	//auto clus = std::make_unique<TrkrClusterv3>();
+        clus_base = clus;
 	clus->setAdc(adc_sum);  
 	clus->setOverlap(ntouch);
 	clus->setEdge(nedge);
@@ -538,35 +541,36 @@ namespace
 	clus->setSubSurfKey(subsurfkey);      
 	clus->setLocalX(localPos(0));
 	clus->setLocalY(localPos(1));
-        if(use_nn && ntouch > 0)
-        {
-          try
-          {
-            // Create a vector of inputs
-            std::vector<torch::jit::IValue> inputs;
-            inputs.emplace_back(torch::stack({
-                  torch::from_blob(std::vector<float>(training_hits->v_adc.begin(), training_hits->v_adc.end()).data(), {1, 2*nd+1, 2*nd+1}, torch::kFloat32),
-                  torch::full({1, 2*nd+1, 2*nd+1}, (training_hits->layer - 7) / 16, torch::kFloat32),
-                  torch::full({1, 2*nd+1, 2*nd+1}, training_hits->z / radius, torch::kFloat32)
-                  }, 1));
-
-            // Execute the model and turn its output into a tensor
-            at::Tensor ten_pos = module_pos.forward(inputs).toTensor();
-            float max_rphi = radius * my_data.layergeom->get_phistep() * nd;
-            float max_z = my_data.layergeom->get_zstep() * nd;
-            float nn_rphi = radius * training_hits->phi + std::clamp(ten_pos[0][0][0].item<float>(), -max_rphi, max_rphi);
-            float nn_z = training_hits->z + std::clamp(ten_pos[0][1][0].item<float>(), -max_z, max_z);
-            clus->setLocalX(nn_rphi);
-            clus->setLocalY(nn_z);
-          }
-          catch(const c10::Error &e)
-          {
-            std::cout << PHWHERE << "Error: Failed to execute NN modules" << std::endl;
-          }
-        } // use_nn
 	my_data.cluster_vector.push_back(clus);
 	
       }
+
+      if(use_nn && ntouch > 0)
+      {
+        try
+        {
+          // Create a vector of inputs
+          std::vector<torch::jit::IValue> inputs;
+          inputs.emplace_back(torch::stack({
+                torch::from_blob(std::vector<float>(training_hits->v_adc.begin(), training_hits->v_adc.end()).data(), {1, 2*nd+1, 2*nd+1}, torch::kFloat32),
+                torch::full({1, 2*nd+1, 2*nd+1}, (training_hits->layer - 7) / 16, torch::kFloat32),
+                torch::full({1, 2*nd+1, 2*nd+1}, training_hits->z / radius, torch::kFloat32)
+                }, 1));
+
+          // Execute the model and turn its output into a tensor
+          at::Tensor ten_pos = module_pos.forward(inputs).toTensor();
+          float max_rphi = radius * my_data.layergeom->get_phistep() * nd;
+          float max_z = my_data.layergeom->get_zstep() * nd;
+          float nn_rphi = radius * training_hits->phi + std::clamp(ten_pos[0][0][0].item<float>(), -max_rphi, max_rphi);
+          float nn_z = training_hits->z + std::clamp(ten_pos[0][1][0].item<float>(), -max_z, max_z);
+          clus_base->setLocalX(nn_rphi);
+          clus_base->setLocalY(nn_z);
+        }
+        catch(const c10::Error &e)
+        {
+          std::cout << PHWHERE << "Error: Failed to execute NN modules" << std::endl;
+        }
+      } // use_nn
       
       //      if(my_data.do_assoc && my_data.clusterhitassoc){
       if(my_data.do_assoc)
@@ -782,6 +786,7 @@ int TpcClusterizer::InitRun(PHCompositeNode *topNode)
       // Deserialize the ScriptModule from a file using torch::jit::load()
       sprintf(filename, "%s-type5-nout1.pt", fileroot);
       module_pos = torch::jit::load(filename);
+      std::cout << PHWHERE << "Load NN module: " << filename << std::endl;
     }
     catch(const c10::Error &e)
     {
