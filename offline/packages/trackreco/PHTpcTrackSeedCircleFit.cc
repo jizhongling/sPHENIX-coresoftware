@@ -69,6 +69,9 @@ int PHTpcTrackSeedCircleFit::process_event(PHCompositeNode*)
     std::cout << PHWHERE << " TPC track map size " << _track_map->size()  << std::endl;
 
   unsigned int track_key = 0;
+  int reset = 0;
+  int notreset = 0;;
+
   // loop over the TPC track seeds
   for (auto phtrk_iter = _track_map->begin();
        phtrk_iter != _track_map->end(); 
@@ -98,6 +101,82 @@ int PHTpcTrackSeedCircleFit::process_event(PHCompositeNode*)
       tracklet_tpc->lineFit(_cluster_map, _surfmaps, _tGeometry, 7, 58);
       tracklet_tpc->circleFitByTaubin(_cluster_map, _surfmaps, _tGeometry, 7, 58);
    
+      if(_do_reset_clus_err){
+	TF1 f0("f0","[0] + x*[1]",0,10);
+	f0.SetParameter(0,0.00050639);
+	f0.SetParameter(1,0.000772036);
+	float fix_err_0 = 0.0061;
+	TF1 f1("f1","[0] + x*[1]",0,10);
+	f1.SetParameter(0,0.000197808);
+	f1.SetParameter(1,0.0012378);
+	float fix_err_1 = 0.0045;
+	TF1 f2("f2","[0] + x*[1]",0,10);
+	f2.SetParameter(0,0.000119418);
+	f2.SetParameter(1,0.001058);
+	float fix_err_2 = 0.004;
+
+        for(SvtxTrack::ConstClusterKeyIter key_iter = tracklet_tpc->begin_cluster_keys();
+            key_iter != tracklet_tpc->end_cluster_keys();
+            ++key_iter)
+        {
+          const TrkrDefs::cluskey& cluster_key = *key_iter;
+
+          // only consider TPC clusters
+          if( TrkrDefs::getTrkrId(cluster_key) != TrkrDefs::tpcId ) continue;
+
+          // get the cluster
+          TrkrCluster *cluster = _cluster_map->findCluster(cluster_key);
+
+          // get global position from Acts transform
+          ActsTransformations transformer;
+          auto global = transformer.getGlobalPosition(cluster_key, cluster, _surfmaps, _tGeometry);
+	  int layer = TrkrDefs::getLayer(cluster_key);
+	  int sector = -1;
+	  if(layer<7) continue;
+	  float r = get_r(global.x(), global.y());
+	  if(layer >=7 && layer < 23){
+	    sector = 0;
+	  }else if(layer>=23 && layer <39){
+	    sector = 1;
+	  }else if(layer>=39 && layer <55){
+	    sector = 2;
+	  }
+
+	  float phi_err_para = 0.004;
+	  if(_fix_error){
+	    if(sector==0){
+	      phi_err_para = fix_err_0;
+	    }
+	    if(sector==1){
+	      phi_err_para = fix_err_1;
+	    }
+	    if(sector==2){
+	      phi_err_para = fix_err_2;
+	    }
+	  }else{
+
+	    float alpha = r * tracklet_tpc->get_qOverR() /2;
+	    if(sector!=-1)
+	      phi_err_para = 0.004;
+	    if(sector==0){
+	      phi_err_para = f0.Eval(alpha);
+	    }
+	    if(sector==1){
+	      phi_err_para = f1.Eval(alpha);
+	    }
+	    if(sector==2){
+	      phi_err_para = f2.Eval(alpha);
+	    }
+	  }
+	  if(cluster->getPhiSize()>1){
+	    reset++;
+	    cluster->setActsLocalError(0, 0, r*r*phi_err_para*phi_err_para);
+	  }else{
+	    notreset++;
+	  }
+	}
+      }
+
       if(Verbosity() > 5)
       {
         std::cout << " new mom " <<  tracklet_tpc->get_p() <<  "  new eta " <<  tracklet_tpc->get_eta()
@@ -107,6 +186,7 @@ int PHTpcTrackSeedCircleFit::process_event(PHCompositeNode*)
       track_key++;
     }  // end loop over TPC track seeds
 
+    std::cout<< " reset: " << reset << " notreset " << notreset << std::endl;
     if(Verbosity() > 0)
       std::cout << " Final track map size " << _track_map->size() << std::endl;
 
