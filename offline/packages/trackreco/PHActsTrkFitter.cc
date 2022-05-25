@@ -16,10 +16,8 @@
 
 #include <trackbase_historic/TrackSeed.h>
 #include <trackbase_historic/TrackSeedContainer.h>
-#include <trackbase_historic/SvtxTrack.h>
-#include <trackbase_historic/SvtxTrack_v3.h>
+#include <trackbase_historic/SvtxTrack_v4.h>
 #include <trackbase_historic/SvtxTrackState_v1.h>
-#include <trackbase_historic/SvtxTrackMap.h>
 #include <trackbase_historic/SvtxTrackMap_v2.h>
 #include <trackbase_historic/ActsTransformations.h>
 
@@ -367,22 +365,22 @@ void PHActsTrkFitter::loopTracks(Acts::Logging::Level logLevel)
 	  if(m_fitSiliconMMs)
 	    {
 
-	      std::unique_ptr<SvtxTrack_v3> newTrack( static_cast<SvtxTrack_v3*>(track->CloneMe()) );
+	      std::unique_ptr<SvtxTrack_v4> newTrack( static_cast<SvtxTrack_v4*>(track->CloneMe()) );
 	      if( getTrackFitResult(fitOutput, newTrack) )
 		{ m_directedTrackMap->insert(newTrack.release()); } 
 	      
 	    }
 	  else
 	    {
-	      auto newTrack = std::make_unique<SvtxTrack_v3>();
+	      auto newTrack = std::make_unique<SvtxTrack_v4>();
 	      /// We want to set the ID to the tpc track seed id so that
 	      /// the ghost rejection finds the right track
 	      newTrack->set_id(tpcid);
-	      addKeys(newTrack, tpcseed);
+	      newTrack->set_tpc_seed(tpcseed);
 	      if(siid != std::numeric_limits<unsigned int>::max())
 		{ 
-		  addKeys(newTrack, m_siliconSeeds->get(siid)); 
 		  newTrack->set_crossing(m_siliconSeeds->get(siid)->get_crossing());
+		  newTrack->set_silicon_seed(m_siliconSeeds->get(siid));
 		}
 	      else
 		{
@@ -514,7 +512,7 @@ SourceLinkVec PHActsTrkFitter::getSourceLinks(TrackSeed* track,
   // loop over all clusters
   std::vector<std::pair<TrkrDefs::cluskey, Acts::Vector3>> global_raw;
 
-  for (SvtxTrack::ConstClusterKeyIter clusIter = track->begin_cluster_keys();
+  for (auto clusIter = track->begin_cluster_keys();
        clusIter != track->end_cluster_keys();
        ++clusIter)
     {
@@ -555,7 +553,6 @@ SourceLinkVec PHActsTrkFitter::getSourceLinks(TrackSeed* track,
       if(trkrid ==  TrkrDefs::tpcId)
 	{	  
 	  // make all corrections to global position of TPC cluster
-
 	  float z = m_clusterCrossingCorrection.correctZ(global[2], side, crossing);
 	  global[2] = z;
 	  
@@ -700,7 +697,7 @@ SourceLinkVec PHActsTrkFitter::getSourceLinks(TrackSeed* track,
 }
 
 bool PHActsTrkFitter::getTrackFitResult(const FitResult &fitOutput,
-				        std::unique_ptr<SvtxTrack_v3>& track)
+				        std::unique_ptr<SvtxTrack_v4>& track)
 {
   /// Make a trajectory state for storage, which conforms to Acts track fit
   /// analysis tool
@@ -864,7 +861,7 @@ void PHActsTrkFitter::checkSurfaceVec(SurfacePtrVec &surfaces) const
 }
 
 void PHActsTrkFitter::updateSvtxTrack(Trajectory traj, 
-				      std::unique_ptr<SvtxTrack_v3>& track)
+				      std::unique_ptr<SvtxTrack_v4>& track)
 {
   const auto& mj = traj.multiTrajectory();
   const auto& tips = traj.tips();
@@ -922,11 +919,7 @@ void PHActsTrkFitter::updateSvtxTrack(Trajectory traj,
       for(int i = 0; i < 6; i++)
 	{
 	  for(int j = 0; j < 6; j++)
-	    {
-	      track->set_error(i,j, rotatedCov(i,j));
-	      track->set_acts_covariance(i,j, 
-					 params.covariance().value()(i,j));
-	    }
+	    { track->set_error(i,j, rotatedCov(i,j)); }
 	} 
     }
 
@@ -1163,16 +1156,6 @@ int PHActsTrkFitter::getNodes(PHCompositeNode* topNode)
     }
 
   return Fun4AllReturnCodes::EVENT_OK;
-}
-
-void PHActsTrkFitter::addKeys(std::unique_ptr<SvtxTrack_v3>& svtxtrack,
-			      TrackSeed* seed)
-{
-  for(auto citer = seed->begin_cluster_keys();
-      citer != seed->end_cluster_keys(); ++citer)
-    {
-      svtxtrack->insert_cluster_key(*citer);
-    }
 }
 
 Surface PHActsTrkFitter::get_tpc_surface_from_coords(TrkrDefs::hitsetkey hitsetkey,
