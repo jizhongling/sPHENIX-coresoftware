@@ -23,6 +23,7 @@
 #include <trackbase/ActsTrackingGeometry.h>
 #include <trackbase/ActsSurfaceMaps.h>
 #include <trackbase/TrkrDefs.h>
+#include <trackbase/TrackFitUtils.h>
 #include <trackbase/InttDefs.h>
 #include <trackbase/TrkrCluster.h>
 #include <trackbase/TrkrClusterContainer.h>
@@ -290,96 +291,6 @@ namespace
     }
   }
 
-  void CircleFitByTaubin(const std::vector<std::pair<double,double>>& points, double &R, double &X0, double &Y0)
-  /*  
-      Circle fit to a given set of data points (in 2D)
-      This is an algebraic fit, due to Taubin, based on the journal article
-      G. Taubin, "Estimation Of Planar Curves, Surfaces And Nonplanar
-      Space Curves Defined By Implicit Equations, With 
-      Applications To Edge And Range Image Segmentation",
-      IEEE Trans. PAMI, Vol. 13, pages 1115-1138, (1991)
-  */
-  {
-    // Compute x- and y- sample means   
-    double meanX = 0;
-    double meanY = 0;
-    double weight = 0;
-    for( const auto& point:points )
-    {
-      meanX += point.first;
-      meanY += point.second;
-      weight++;
-    }
-    meanX /= weight;
-    meanY /= weight;
-
-    //     computing moments 
-    double Mxy = 0;
-    double Mxx = 0;
-    double Myy = 0;
-    double Mxz = 0;
-    double Myz = 0;
-    double Mzz = 0;
-    for( const auto& point:points )
-    {
-      double Xi = point.first - meanX;   //  centered x-coordinates
-      double Yi = point.second - meanY;   //  centered y-coordinates
-      double Zi = Xi*Xi + Yi*Yi;
-
-      Mxy += Xi*Yi;
-      Mxx += Xi*Xi;
-      Myy += Yi*Yi;
-      Mxz += Xi*Zi;
-      Myz += Yi*Zi;
-      Mzz += Zi*Zi;
-    }
-    Mxx /= weight;
-    Myy /= weight;
-    Mxy /= weight;
-    Mxz /= weight;
-    Myz /= weight;
-    Mzz /= weight;
-
-    //  computing coefficients of the characteristic polynomial
-    const double Mz = Mxx + Myy;
-    const double Cov_xy = Mxx*Myy - Mxy*Mxy;
-    const double Var_z = Mzz - Mz*Mz;
-    const double A3 = 4*Mz;
-    const double A2 = -3*Mz*Mz - Mzz;
-    const double A1 = Var_z*Mz + 4*Cov_xy*Mz - Mxz*Mxz - Myz*Myz;
-    const double A0 = Mxz*(Mxz*Myy - Myz*Mxy) + Myz*(Myz*Mxx - Mxz*Mxy) - Var_z*Cov_xy;
-    const double A22 = A2 + A2;
-    const double A33 = A3 + A3 + A3;
-
-    //    finding the root of the characteristic polynomial
-    //    using Newton's method starting at x=0  
-    //    (it is guaranteed to converge to the right root)
-    double x = 0;
-    double y = A0;  
-    static constexpr int IterMAX=99;
-    for (int iter=0; iter<IterMAX; ++iter)  // usually, 4-6 iterations are enough
-    {
-      double Dy = A1 + x*(A22 + A33*x);
-      double xnew = x - y/Dy;
-      if ((xnew == x)||(!std::isfinite(xnew))) break;
-      double ynew = A0 + xnew*(A1 + xnew*(A2 + xnew*A3));
-      if (fabs(ynew)>=fabs(y))  break;
-      x = xnew;  y = ynew;
-    }
-
-    //  computing parameters of the fitting circle
-    const double DET = x*x - x*Mz + Cov_xy;
-
-    const double Xcenter = (Mxz*(Myy - x) - Myz*Mxy)/DET/2;
-    const double Ycenter = (Myz*(Mxx - x) - Mxz*Mxy)/DET/2;
-
-    //  assembling the output
-
-    X0 = Xcenter + meanX;
-    Y0 = Ycenter + meanY;
-    R = sqrt(Xcenter*Xcenter + Ycenter*Ycenter + Mz);
-  }
-
   // calculate intersection between line and circle
   double line_circle_intersection( const TVector3& p0, const TVector3& p1, double radius )
   {
@@ -634,7 +545,6 @@ void TrackEvaluation::evaluate_tracks()
     std::vector<std::pair<double,double>> xy_pts;
     for( auto key_iter = track->begin_cluster_keys(); key_iter != track->end_cluster_keys(); ++key_iter )
     {
-
       const auto& cluster_key = *key_iter;
       auto cluster = m_cluster_map->findCluster( cluster_key );
       if( !cluster )
@@ -646,12 +556,8 @@ void TrackEvaluation::evaluate_tracks()
       double x = global.x();
       double y = global.y();
       xy_pts.push_back(std::make_pair(x,y));
-      
     }
-    double R = 0;
-    double X0 = 0;
-    double Y0 = 0;
-    CircleFitByTaubin(xy_pts,R,X0,Y0);
+    auto [R, X0, Y0] = TrackFitUtils::circle_fit_by_taubin(xy_pts);
     track_struct.R = R;
     track_struct.X0 = X0;
     track_struct.Y0 = Y0;
