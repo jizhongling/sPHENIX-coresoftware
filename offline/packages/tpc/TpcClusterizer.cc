@@ -810,7 +810,7 @@ int TpcClusterizer::InitRun(PHCompositeNode *topNode)
     try
     {
       // Deserialize the ScriptModule from a file using torch::jit::load()
-      sprintf(filename, "%s-type5-nout1.pt", fileroot);
+      sprintf(filename, "%s-type1-nout1.pt", fileroot);
       module_pos = torch::jit::load(filename);
       std::cout << PHWHERE << "Load NN module: " << filename << std::endl;
     }
