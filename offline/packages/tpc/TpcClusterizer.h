@@ -3,8 +3,7 @@
 
 #include <fun4all/SubsysReco.h>
 #include <trackbase/TrkrCluster.h>
-#include <trackbase/ActsSurfaceMaps.h>
-#include <trackbase/ActsTrackingGeometry.h>
+#include <trackbase/ActsGeometry.h>
 
 #include <map> 
 #include <vector>
@@ -49,9 +48,7 @@ class TpcClusterizer : public SubsysReco
   TrkrHitSetContainer *m_hits = nullptr;
   TrkrClusterContainer *m_clusterlist = nullptr;
   TrkrClusterHitAssoc *m_clusterhitassoc = nullptr;
-  ActsSurfaceMaps *m_surfMaps = nullptr;
-  ActsTrackingGeometry *m_tGeometry = nullptr;
-
+  ActsGeometry *m_tGeometry = nullptr;
   bool _use_nn = true;
   bool do_hit_assoc = true;
   bool do_wedge_emulation = false;

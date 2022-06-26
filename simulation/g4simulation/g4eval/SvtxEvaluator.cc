@@ -13,8 +13,7 @@
 #include <trackbase/TrkrHit.h>
 #include <trackbase/TrkrHitSetContainer.h>
 #include <trackbase/TrkrDefs.h>
-#include <trackbase/ActsTrackingGeometry.h>
-#include <trackbase/ActsSurfaceMaps.h>
+#include <trackbase/ActsGeometry.h>
 
 #include <tpc/TpcDefs.h>
 #include <tpc/TrainingHitsContainer.h>
@@ -519,9 +518,9 @@ void SvtxEvaluator::printOutputInfo(PHCompositeNode* topNode)
     unsigned int nclusters[100] = {0};
     unsigned int nhits[100] = {0};
 
-    ActsTrackingGeometry *tgeometry = findNode::getClass<ActsTrackingGeometry>(topNode,"ActsTrackingGeometry");
-    ActsSurfaceMaps *surfmaps = findNode::getClass<ActsSurfaceMaps>(topNode,"ActsSurfaceMaps");
-    if(!tgeometry or !surfmaps)
+    ActsGeometry *tgeometry = findNode::getClass<ActsGeometry>(topNode,"ActsGeometry");
+   
+    if(!tgeometry)
       {
 	std::cout << PHWHERE << "No Acts geometry on node tree. Can't  continue."
 		  << std::endl;
@@ -689,7 +688,7 @@ void SvtxEvaluator::printOutputInfo(PHCompositeNode* topNode)
 	      
 	      TrkrCluster *cluster = clustermap->findCluster(cluster_key);
         
-	      auto glob = surfmaps->getGlobalPosition(cluster_key, cluster,tgeometry);
+	      auto glob = tgeometry->getGlobalPosition(cluster_key, cluster);
 	      float x = glob(0);
 	      float y = glob(1);
 	      float z = glob(2);
@@ -747,7 +746,7 @@ void SvtxEvaluator::printOutputInfo(PHCompositeNode* topNode)
 	      TrkrDefs::cluskey cluster_key = *iter;
               TrkrCluster *cluster = clustermap->findCluster(cluster_key);
 
-	      auto glob = surfmaps->getGlobalPosition(cluster_key, cluster,tgeometry);
+	      auto glob = tgeometry->getGlobalPosition(cluster_key, cluster);
               float x = glob(0);
               float y = glob(1);
               float z = glob(2);
@@ -805,9 +804,8 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 {
   if (Verbosity() > 1) cout << "SvtxEvaluator::fillOutputNtuples() entered" << endl;
   
-  ActsTrackingGeometry *tgeometry = findNode::getClass<ActsTrackingGeometry>(topNode,"ActsTrackingGeometry");
-  ActsSurfaceMaps *surfmaps = findNode::getClass<ActsSurfaceMaps>(topNode,"ActsSurfaceMaps");
-  if(!tgeometry or !surfmaps)
+  ActsGeometry *tgeometry = findNode::getClass<ActsGeometry>(topNode,"ActsGeometry");
+  if(!tgeometry)
     {
       std::cout << "No Acts geometry on node tree. Can't  continue."
 		<< std::endl;
@@ -1455,7 +1453,7 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
       if (cluster)
       {
         clusID = cluster_key;
-	auto global = surfmaps->getGlobalPosition(cluster_key, cluster,tgeometry);
+	auto global = tgeometry->getGlobalPosition(cluster_key, cluster);
         x = global(0);
         y = global(1);
         z = global(2);
@@ -1842,7 +1840,7 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
             nedge = clusterv4->getEdge();
           }
 	  float hitID = (float) cluster_key;
-	  auto cglob = surfmaps->getGlobalPosition(cluster_key, cluster,tgeometry);
+	  auto cglob = tgeometry->getGlobalPosition(cluster_key, cluster);
 	  float x = cglob(0);
 	  float y = cglob(1);
 	  float z = cglob(2);
@@ -2105,7 +2103,7 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 	      if(_iteration_map!=NULL)
 		niter = _iteration_map->getIteration(cluster_key);
 	      float hitID = (float) TrkrDefs::getClusIndex(cluster_key);
-	      auto glob = surfmaps->getGlobalPosition(cluster_key, cluster,tgeometry);
+	      auto glob = tgeometry->getGlobalPosition(cluster_key, cluster);
 	      float x = glob(0);
 	      float y = glob(1);
 	      float z = glob(2);
@@ -2391,7 +2389,7 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 	      if(reco_cluster)
 		{
 		  nreco = 1;
-		  auto glob = surfmaps->getGlobalPosition(reco_ckey, reco_cluster,tgeometry);
+		  auto glob = tgeometry->getGlobalPosition(reco_ckey, reco_cluster);
 		  x = glob(0);
 		  y = glob(1);
 		  z = glob(2);

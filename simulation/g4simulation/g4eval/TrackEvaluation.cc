@@ -20,8 +20,7 @@
 #include <phool/PHCompositeNode.h>
 #include <phool/PHNodeIterator.h>
 #include <tpc/TpcDefs.h>
-#include <trackbase/ActsTrackingGeometry.h>
-#include <trackbase/ActsSurfaceMaps.h>
+
 #include <trackbase/TrkrDefs.h>
 #include <trackbase/TrackFitUtils.h>
 #include <trackbase/InttDefs.h>
@@ -395,12 +394,8 @@ int TrackEvaluation::End(PHCompositeNode* )
 int TrackEvaluation::load_nodes( PHCompositeNode* topNode )
 {
 
-  // acts surface map
-  m_surfmaps = findNode::getClass<ActsSurfaceMaps>(topNode, "ActsSurfaceMaps");
-  assert( m_surfmaps );
-
   // acts geometry
-  m_tGeometry = findNode::getClass<ActsTrackingGeometry>(topNode, "ActsTrackingGeometry");
+  m_tGeometry = findNode::getClass<ActsGeometry>(topNode, "ActsGeometry");
   assert( m_tGeometry );
 
   // get necessary nodes
@@ -541,28 +536,8 @@ void TrackEvaluation::evaluate_tracks()
     // running iterator over track states, used to match a given cluster to a track state
     auto state_iter = track->begin_states();
 
-    // loop over clusters to calculate R, X0, and Y0 values
-    std::vector<std::pair<double,double>> xy_pts;
-    for( auto key_iter = track->begin_cluster_keys(); key_iter != track->end_cluster_keys(); ++key_iter )
-    {
-      const auto& cluster_key = *key_iter;
-      auto cluster = m_cluster_map->findCluster( cluster_key );
-      if( !cluster )
-      {
-        std::cout << "TrackEvaluation::evaluate_tracks - unable to find cluster for key " << cluster_key << std::endl;
-        continue;
-      }
-      const auto global = m_transformer.getGlobalPosition(cluster_key, cluster, m_surfmaps, m_tGeometry);
-      double x = global.x();
-      double y = global.y();
-      xy_pts.push_back(std::make_pair(x,y));
-    }
-    auto [R, X0, Y0] = TrackFitUtils::circle_fit_by_taubin(xy_pts);
-    track_struct.R = R;
-    track_struct.X0 = X0;
-    track_struct.Y0 = Y0;
-
     // loop over clusters
+    TrackFitUtils::position_vector_t xy_pts;
     for( const auto& cluster_key:get_cluster_keys( track ) )
     {
       auto cluster = m_cluster_map->findCluster( cluster_key );
@@ -613,7 +588,15 @@ void TrackEvaluation::evaluate_tracks()
 
       // add to track
       track_struct.clusters.push_back( cluster_struct );
+
+      // add to fitting points
+      xy_pts.push_back(std::make_pair(cluster_struct.x, cluster_struct.y));
     }
+    // calculate R, X0, and Y0 values
+    auto [R, X0, Y0] = TrackFitUtils::circle_fit_by_taubin(xy_pts);
+    track_struct.R = R;
+    track_struct.X0 = X0;
+    track_struct.Y0 = Y0;
     m_container->addTrack( track_struct );
   }
 }
@@ -718,7 +701,7 @@ int TrackEvaluation::get_embed( PHG4Particle* particle ) const
 TrackEvaluationContainerv1::ClusterStruct TrackEvaluation::create_cluster( TrkrDefs::cluskey key, TrkrCluster* cluster ) const
 {
   // get global coordinates
-  const auto global = m_surfmaps->getGlobalPosition(key, cluster, m_tGeometry);
+  const auto global = m_tGeometry->getGlobalPosition(key, cluster);
 
   TrackEvaluationContainerv1::ClusterStruct cluster_struct;
   cluster_struct.key = key;
