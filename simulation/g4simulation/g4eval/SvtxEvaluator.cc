@@ -8,6 +8,7 @@
 #include "SvtxTruthEval.h"
 #include "SvtxVertexEval.h"
 
+#include <trackbase/TrkrCluster.h>
 #include <trackbase/TrkrClusterv3.h>
 #include <trackbase/TrkrClusterv4.h>
 #include <trackbase/TrkrHit.h>
@@ -189,8 +190,8 @@ int SvtxEvaluator::Init(PHCompositeNode* /*topNode*/)
 
   if (_do_cluster_eval) _ntp_cluster = new TNtuple("ntp_cluster", "svtxcluster => max truth",
                                                    "event:seed:hitID:x:y:z:r:phi:eta:theta:ex:ey:ez:ephi:"
-                                                   "e:adc:maxadc:layer:phielem:zelem:size:"
-                                                   "trackID:niter:ntouch:nedge:g4hitID:gx:"
+                                                   "e:adc:maxadc:layer:phielem:zelem:size:phisize:zsize:"
+                                                   "trackID:niter:g4hitID:gx:"
                                                    "gy:gz:gr:gphi:geta:gt:gtrackID:gflavor:"
                                                    "gpx:gpy:gpz:gvx:gvy:gvz:gvt:"
                                                    "gfpx:gfpy:gfpz:gfx:gfy:gfz:"
@@ -1832,13 +1833,6 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 	  float niter = 0;
 	  if(_iteration_map!=NULL)
 	    niter = _iteration_map->getIteration(cluster_key);
-          auto clusterv4 = dynamic_cast<TrkrClusterv4*>(cluster);
-          float ntouch = NAN;
-          float nedge = NAN;
-          if(clusterv4){
-            ntouch = clusterv4->getOverlap();
-            nedge = clusterv4->getEdge();
-          }
 	  float hitID = (float) cluster_key;
 	  auto cglob = tgeometry->getGlobalPosition(cluster_key, cluster);
 	  float x = cglob(0);
@@ -1849,18 +1843,30 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 	  float phi = pos.Phi();
 	  float eta = pos.Eta();
 	  float theta = pos.Theta();
-	  auto globerr = calculateClusterError(cluster,phi);
-	  float ex = sqrt(globerr[0][0]);
-	  float ey = sqrt(globerr[1][1]);
-	  float ez = cluster->getZError();
-	  float ephi = cluster->getRPhiError();
+
+	  float ex = 0;
+	  float ey = 0;
+	  float ez = 0;
+	  float ephi =  0;
+	  float size = 0;
+	  float phisize = 0;
+	  float zsize = 0;
+	  if(m_cluster_version==3){
+	    auto globerr = calculateClusterError(cluster,phi);
+	    ex = sqrt(globerr[0][0]);
+	    ey = sqrt(globerr[1][1]);
+	    ez = cluster->getZError();
+	    ephi = cluster->getRPhiError();
+	  }else if(m_cluster_version==4){
+	    phisize = cluster->getPhiSize();
+	    zsize = cluster->getZSize();
+	  }
 	  
 	  float e = cluster->getAdc();
 	  float adc = cluster->getAdc();
 	  float layer = (float) TrkrDefs::getLayer(cluster_key);
 	  float sector = TpcDefs::getSectorId(cluster_key);
 	  float side = TpcDefs::getSide(cluster_key);
-	  float size = 0;
 	  float maxadc = -999;
 	  // count all hits for this cluster
 	  TrkrDefs::hitsetkey hitsetkey =  TrkrDefs::getHitSetKeyFromClusKey(cluster_key);
@@ -2013,10 +2019,10 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 				  sector,
 				  side,
 				  size,
+				  phisize,
+				  zsize,
 				  trackID,
 				  niter,
-                                  ntouch,
-                                  nedge,
 				  g4hitID,
 				  gx,
 				  gy,
@@ -2112,12 +2118,24 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 	      float phi = pos.Phi();
 	      float eta = pos.Eta();
 	      float theta = pos.Theta();
-	      auto globerr = calculateClusterError(cluster,phi);
-	      float ex = sqrt(globerr[0][0]);
-	      float ey = sqrt(globerr[1][1]);
-	      float ez = cluster->getZError();
-	      
-	      float ephi = cluster->getRPhiError();
+
+	      float ex = 0;
+	      float ey = 0;
+	      float ez = 0;
+	      float ephi =  0;
+	      float size = 0;
+	      float phisize = 0;
+	      float zsize = 0;
+	      if(m_cluster_version==3){
+		auto globerr = calculateClusterError(cluster,phi);
+		ex = sqrt(globerr[0][0]);
+		ey = sqrt(globerr[1][1]);
+		ez = cluster->getZError();
+		ephi = cluster->getRPhiError();
+	      }else if(m_cluster_version==4){
+		phisize = cluster->getPhiSize();
+		zsize = cluster->getZSize();
+	      }
 	      
 	      float e = cluster->getAdc();
 	      float adc = cluster->getAdc();
@@ -2126,7 +2144,6 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 	      float side = TpcDefs::getSide(cluster_key);
 	      // count all hits for this cluster
 
-	      float size = 0;
 	      float maxadc = -999;
 	      // count all hits for this cluster
 	      TrkrDefs::hitsetkey hitsetkey =  TrkrDefs::getHitSetKeyFromClusKey(cluster_key);
@@ -2253,6 +2270,8 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 				      sector,
 				      side,
 				      size,
+				      phisize,
+				      zsize,
 				      trackID,
 				      niter,
 				      g4hitID,
