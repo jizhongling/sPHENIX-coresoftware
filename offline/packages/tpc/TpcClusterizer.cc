@@ -67,6 +67,7 @@ namespace
   // Neural network parameters and modules
   bool use_nn = true;
   const int nd = 5;
+  torch::jit::script::Module module_ntruth;
   torch::jit::script::Module module_pos;
 
   struct thread_data 
@@ -477,7 +478,8 @@ namespace
 	
       }
 
-      if(use_nn && ntouch > 0)
+      bool store_cluster = true;
+      if(use_nn)
       {
         try
         {
@@ -494,13 +496,22 @@ namespace
                 }, 1));
 
           // Execute the model and turn its output into a tensor
-          at::Tensor ten_pos = module_pos.forward(inputs).toTensor();
-          float nn_dphi = std::clamp(ten_pos[0][0][0].item<float>(), -(float)nd, (float)nd) * width_phi[li];
-          float nn_dz = std::clamp(ten_pos[0][1][0].item<float>(), -(float)nd, (float)nd) * width_z;
-          float nn_rphi = radius * (training_hits->phi + nn_dphi) - surfRphiCenter;
-          float nn_z = training_hits->z + nn_dz - surfZCenter;
-          clus_base->setLocalX(nn_rphi);
-          clus_base->setLocalY(nn_z);
+          at::Tensor ten_ntruth = module_ntruth.forward(inputs).toTensor();
+          int nn_ntruth = ten_ntruth.argmax(1)[0].item<int>();
+          if(nn_ntruth == 0)
+          {
+            store_cluster = false;
+          }
+          else
+          {
+            at::Tensor ten_pos = module_pos.forward(inputs).toTensor();
+            float nn_dphi = std::clamp(ten_pos[0][0][0].item<float>(), -(float)nd, (float)nd) * width_phi[li];
+            float nn_dz = std::clamp(ten_pos[0][1][0].item<float>(), -(float)nd, (float)nd) * width_z;
+            float nn_rphi = radius * (training_hits->phi + nn_dphi) - surfRphiCenter;
+            float nn_z = training_hits->z + nn_dz - surfZCenter;
+            clus_base->setLocalX(nn_rphi);
+            clus_base->setLocalY(nn_z);
+          }
         }
         catch(const c10::Error &e)
         {
@@ -509,7 +520,7 @@ namespace
       } // use_nn
       
       //      if(my_data.do_assoc && my_data.clusterhitassoc){
-      if(my_data.do_assoc)
+      if(my_data.do_assoc && store_cluster)
 	{
         // get cluster index in vector. It is used to store associations, and build relevant cluster keys when filling the containers
         uint32_t index = my_data.cluster_vector.size()-1;
@@ -739,6 +750,9 @@ int TpcClusterizer::InitRun(PHCompositeNode *topNode)
     try
     {
       // Deserialize the ScriptModule from a file using torch::jit::load()
+      sprintf(filename, "%s-type0-nout1.pt", fileroot);
+      module_ntruth = torch::jit::load(filename);
+      std::cout << PHWHERE << "Load NN module: " << filename << std::endl;
       sprintf(filename, "%s-type1-nout1.pt", fileroot);
       module_pos = torch::jit::load(filename);
       std::cout << PHWHERE << "Load NN module: " << filename << std::endl;
