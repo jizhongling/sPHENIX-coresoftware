@@ -8,6 +8,9 @@
 #include "SvtxTruthEval.h"
 #include "SvtxVertexEval.h"
 
+#include <tpc/TrainingHitsContainer.h>
+#include <tpc/TrainingHits.h>
+
 #include <trackbase/TrkrCluster.h>
 #include <trackbase/TrkrClusterv3.h>
 #include <trackbase/TrkrClusterv4.h>
@@ -15,10 +18,7 @@
 #include <trackbase/TrkrHitSetContainer.h>
 #include <trackbase/TrkrDefs.h>
 #include <trackbase/ActsGeometry.h>
-
-#include <tpc/TpcDefs.h>
-#include <tpc/TrainingHitsContainer.h>
-#include <tpc/TrainingHits.h>
+#include <trackbase/TpcDefs.h>
 
 #include <trackbase/TrkrClusterContainer.h>
 #include <trackbase/TrkrHitSet.h>
@@ -688,8 +688,10 @@ void SvtxEvaluator::printOutputInfo(PHCompositeNode* topNode)
 	      TrkrDefs::cluskey cluster_key = *kter;
 	      
 	      TrkrCluster *cluster = clustermap->findCluster(cluster_key);
-        
-	      auto glob = tgeometry->getGlobalPosition(cluster_key, cluster);
+	      // auto trkrid = TrkrDefs::getTrkrId(cluster_key);
+	      Acts::Vector3 glob;
+	      glob = tgeometry->getGlobalPosition(cluster_key, cluster);
+
 	      float x = glob(0);
 	      float y = glob(1);
 	      float z = glob(2);
@@ -746,8 +748,10 @@ void SvtxEvaluator::printOutputInfo(PHCompositeNode* topNode)
             {
 	      TrkrDefs::cluskey cluster_key = *iter;
               TrkrCluster *cluster = clustermap->findCluster(cluster_key);
+	      //auto trkrid = TrkrDefs::getTrkrId(cluster_key);
+	      Acts::Vector3 glob;
+	      glob = tgeometry->getGlobalPosition(cluster_key, cluster);
 
-	      auto glob = tgeometry->getGlobalPosition(cluster_key, cluster);
               float x = glob(0);
               float y = glob(1);
               float z = glob(2);
@@ -1454,7 +1458,9 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
       if (cluster)
       {
         clusID = cluster_key;
-	auto global = tgeometry->getGlobalPosition(cluster_key, cluster);
+	//auto trkrid = TrkrDefs::getTrkrId(cluster_key);
+	Acts::Vector3 global;
+	global = tgeometry->getGlobalPosition(cluster_key, cluster);
         x = global(0);
         y = global(1);
         z = global(2);
@@ -1834,7 +1840,9 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 	  if(_iteration_map!=NULL)
 	    niter = _iteration_map->getIteration(cluster_key);
 	  float hitID = (float) cluster_key;
-	  auto cglob = tgeometry->getGlobalPosition(cluster_key, cluster);
+	  //auto trkrid = TrkrDefs::getTrkrId(cluster_key);
+	  Acts::Vector3 cglob;
+	  cglob = tgeometry->getGlobalPosition(cluster_key, cluster);
 	  float x = cglob(0);
 	  float y = cglob(1);
 	  float z = cglob(2);
@@ -2109,7 +2117,9 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 	      if(_iteration_map!=NULL)
 		niter = _iteration_map->getIteration(cluster_key);
 	      float hitID = (float) TrkrDefs::getClusIndex(cluster_key);
-	      auto glob = tgeometry->getGlobalPosition(cluster_key, cluster);
+	      //auto trkrid = TrkrDefs::getTrkrId(cluster_key);
+	      Acts::Vector3 glob;
+	      glob = tgeometry->getGlobalPosition(cluster_key, cluster);
 	      float x = glob(0);
 	      float y = glob(1);
 	      float z = glob(2);
@@ -2408,7 +2418,9 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 	      if(reco_cluster)
 		{
 		  nreco = 1;
-		  auto glob = tgeometry->getGlobalPosition(reco_ckey, reco_cluster);
+		  //auto trkrid = TrkrDefs::getTrkrId(reco_ckey);
+		  Acts::Vector3 glob;
+		  glob = tgeometry->getGlobalPosition(reco_ckey, reco_cluster);
 		  x = glob(0);
 		  y = glob(1);
 		  z = glob(2);

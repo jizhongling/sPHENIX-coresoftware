@@ -25,7 +25,6 @@ pkginclude_HEADERS = \
   TpcClusterizer.h \
   TpcClusterMover.h \
   TpcClusterZCrossingCorrection.h \
-  TpcDefs.h \
   TpcDistortionCorrection.h \
   TpcDistortionCorrectionContainer.h \
   TpcLoadDistortionCorrection.h \
@@ -61,7 +60,6 @@ libtpc_io_la_SOURCES = \
   $(ROOTDICTS) \
   TrainingHitsContainer.cc \
   TrainingHits.cc \
-  TpcDefs.cc \
   TpcDistortionCorrection.cc \
   TpcClusterMover.cc \
   TpcClusterZCrossingCorrection.cc
