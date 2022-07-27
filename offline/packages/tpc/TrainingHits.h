@@ -17,6 +17,8 @@ class TrainingHits: public PHObject
     Float_t radius;
     Float_t phi;
     Float_t z;
+    Float_t phistep;
+    Float_t zstep;
     Short_t layer;
     Short_t ntouch;
     Short_t nedge;

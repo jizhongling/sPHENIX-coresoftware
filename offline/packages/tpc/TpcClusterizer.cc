@@ -67,7 +67,6 @@ namespace
   // Neural network parameters and modules
   bool use_nn = true;
   const int nd = 5;
-  torch::jit::script::Module module_ntruth;
   torch::jit::script::Module module_pos;
 
   struct thread_data 
@@ -283,7 +282,7 @@ namespace
 	  return;
 	}
   
-    void calc_cluster_parameter(const int iphi_center, const int iz_center,
+    void calc_cluster_parameter(const int iphi_center, const int it_center,
         const std::vector<ihit> &ihit_list, thread_data& my_data, int ntouch, int nedge )
     {
     
@@ -313,7 +312,13 @@ namespace
       auto training_hits = new TrainingHits;
       training_hits->radius = radius;
       training_hits->phi = my_data.layergeom->get_phicenter(iphi_center+my_data.phioffset);
-      training_hits->z = my_data.layergeom->get_zcenter(iz_center+my_data.toffset);
+      double center_t = my_data.layergeom->get_zcenter(it_center+my_data.toffset);
+      double center_zdriftlength = center_t * my_data.tGeometry->get_drift_velocity();
+      training_hits->z = my_data.m_tdriftmax * my_data.tGeometry->get_drift_velocity() - center_zdriftlength;
+      if(my_data.side == 0)
+        training_hits->z = -training_hits->z;
+      training_hits->phistep = my_data.layergeom->get_phistep();
+      training_hits->zstep = my_data.layergeom->get_zstep() * my_data.tGeometry->get_drift_velocity();
       training_hits->layer = my_data.layer;
       training_hits->ntouch = ntouch;
       training_hits->nedge = nedge;
@@ -351,9 +356,9 @@ namespace
 
         // training adc
         int iphi_diff = iter->iphi - iphi_center;
-        int iz_diff = iter->it - iz_center;
-        if( std::abs(iphi_diff) <= nd && std::abs(iz_diff) <= nd)
-          training_hits->v_adc[(iphi_diff+nd)*(2*nd+1)+(iz_diff+nd)] = adc;
+        int it_diff = iter->it - it_center;
+        if( std::abs(iphi_diff) <= nd && std::abs(it_diff) <= nd)
+          training_hits->v_adc[(iphi_diff+nd)*(2*nd+1)+(it_diff+nd)] = adc;
       }
       if (adc_sum < 10){
 	hitkeyvec.clear();
@@ -414,34 +419,11 @@ namespace
       // SAMPA shaping bias correction
       clust = clust + my_data.sampa_tbias;
 
-      Acts::Vector3 center = surface->center(my_data.tGeometry->geometry().geoContext)/Acts::UnitConstants::cm;
-  
-      // no conversion needed, only used in acts
-      Acts::Vector3 normal = surface->normal(my_data.tGeometry->geometry().geoContext);
-      double clusRadius = sqrt(clusx * clusx + clusy * clusy);
-      double rClusPhi = clusRadius * clusphi;
-      double surfRadius = sqrt(center(0)*center(0) + center(1)*center(1));
-      double surfPhiCenter = atan2(center[1], center[0]);
-      double surfRphiCenter = surfPhiCenter * surfRadius;
-      double surfZCenter = center[2];
-     
-      auto local = surface->globalToLocal(my_data.tGeometry->geometry().geoContext,
-					  global * Acts::UnitConstants::cm,
-					  normal);
-      Acts::Vector2 localPos;
+      /// convert to Acts units
+      global *= Acts::UnitConstants::cm;
+      Acts::Vector3 local = surface->transform(my_data.tGeometry->geometry().geoContext).inverse() * global;
 
-      // Prefer Acts transformation since we build the TPC surfaces manually
-      if(local.ok())
-	{
-	  localPos = local.value() / Acts::UnitConstants::cm;
-	}
-      else
-	{
-	  /// otherwise take the manual calculation
-	  localPos(0) = rClusPhi - surfRphiCenter;
-	  localPos(1) = clusz - surfZCenter; 
-	}
-      
+      local /= Acts::UnitConstants::cm;     
       
       // we need the cluster key and all associated hit keys (note: the cluster key includes the hitset key)
       
@@ -455,12 +437,12 @@ namespace
         clus_base = clus;
 	clus->setAdc(adc_sum);      
 	clus->setSubSurfKey(subsurfkey);      
-	clus->setLocalX(localPos(0));
+	clus->setLocalX(local(0));
 	clus->setLocalY(clust);
 	clus->setActsLocalError(0,0, phi_err_square);
 	clus->setActsLocalError(1,0, 0);
 	clus->setActsLocalError(0,1, 0);
-	clus->setActsLocalError(1,1, t_err_square);
+	clus->setActsLocalError(1,1, t_err_square * pow(my_data.tGeometry->get_drift_velocity(),2));
 	my_data.cluster_vector.push_back(clus);
       }else if(my_data.cluster_version==4){
 	auto clus = new TrkrClusterv4;
@@ -472,46 +454,37 @@ namespace
 	clus->setPhiSize(phisize);
 	clus->setZSize(tsize);
 	clus->setSubSurfKey(subsurfkey);      
-	clus->setLocalX(localPos(0));
+	clus->setLocalX(local(0));
 	clus->setLocalY(clust);
 	my_data.cluster_vector.push_back(clus);
 	
       }
 
-      bool store_cluster = true;
-      if(use_nn)
+      if(use_nn && ntouch > 0)
       {
         try
         {
-          const int li = std::clamp((training_hits->layer - 7) / 16, 0, 2);
-          const float width_phi[3] = {2*M_PI/1152, 2*M_PI/1536, 2*M_PI/2304};
-          const float width_z = 53. * 8. / 1000.;
-
           // Create a vector of inputs
           std::vector<torch::jit::IValue> inputs;
           inputs.emplace_back(torch::stack({
                 torch::from_blob(std::vector<float>(training_hits->v_adc.begin(), training_hits->v_adc.end()).data(), {1, 2*nd+1, 2*nd+1}, torch::kFloat32),
-                torch::full({1, 2*nd+1, 2*nd+1}, li, torch::kFloat32),
+                torch::full({1, 2*nd+1, 2*nd+1}, std::clamp((training_hits->layer - 7) / 16, 0, 2), torch::kFloat32),
                 torch::full({1, 2*nd+1, 2*nd+1}, training_hits->z / radius, torch::kFloat32)
                 }, 1));
 
           // Execute the model and turn its output into a tensor
-          at::Tensor ten_ntruth = module_ntruth.forward(inputs).toTensor();
-          int nn_ntruth = ten_ntruth.argmax(1)[0].item<int>();
-          if(nn_ntruth == 0)
-          {
-            store_cluster = false;
-          }
-          else
-          {
-            at::Tensor ten_pos = module_pos.forward(inputs).toTensor();
-            float nn_dphi = std::clamp(ten_pos[0][0][0].item<float>(), -(float)nd, (float)nd) * width_phi[li];
-            float nn_dz = std::clamp(ten_pos[0][1][0].item<float>(), -(float)nd, (float)nd) * width_z;
-            float nn_rphi = radius * (training_hits->phi + nn_dphi) - surfRphiCenter;
-            float nn_z = training_hits->z + nn_dz - surfZCenter;
-            clus_base->setLocalX(nn_rphi);
-            clus_base->setLocalY(nn_z);
-          }
+          at::Tensor ten_pos = module_pos.forward(inputs).toTensor();
+          float nn_phi = training_hits->phi + std::clamp(ten_pos[0][0][0].item<float>(), -(float)nd, (float)nd) * training_hits->phistep;
+          float nn_z = training_hits->z + std::clamp(ten_pos[0][1][0].item<float>(), -(float)nd, (float)nd) * training_hits->zstep;
+          float nn_x = radius * cos(nn_phi);
+          float nn_y = radius * sin(nn_phi);
+          Acts::Vector3 nn_global(nn_x, nn_y, nn_z);
+          nn_global *= Acts::UnitConstants::cm;
+          Acts::Vector3 nn_local = surface->transform(my_data.tGeometry->geometry().geoContext).inverse() * nn_global;
+          nn_local /= Acts::UnitConstants::cm;
+          float nn_t = my_data.m_tdriftmax - fabs(nn_z) / my_data.tGeometry->get_drift_velocity() + my_data.sampa_tbias;
+          clus_base->setLocalX(nn_local(0));
+          clus_base->setLocalY(nn_t);
         }
         catch(const c10::Error &e)
         {
@@ -520,7 +493,7 @@ namespace
       } // use_nn
       
       //      if(my_data.do_assoc && my_data.clusterhitassoc){
-      if(my_data.do_assoc && store_cluster)
+      if(my_data.do_assoc)
 	{
         // get cluster index in vector. It is used to store associations, and build relevant cluster keys when filling the containers
         uint32_t index = my_data.cluster_vector.size()-1;
@@ -751,9 +724,6 @@ int TpcClusterizer::InitRun(PHCompositeNode *topNode)
     try
     {
       // Deserialize the ScriptModule from a file using torch::jit::load()
-      sprintf(filename, "%s-type0-nout1.pt", fileroot);
-      module_ntruth = torch::jit::load(filename);
-      std::cout << PHWHERE << "Load NN module: " << filename << std::endl;
       sprintf(filename, "%s-type1-nout1.pt", fileroot);
       module_pos = torch::jit::load(filename);
       std::cout << PHWHERE << "Load NN module: " << filename << std::endl;

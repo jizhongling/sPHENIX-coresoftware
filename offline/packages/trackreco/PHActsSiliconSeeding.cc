@@ -1,6 +1,7 @@
 #include "PHActsSiliconSeeding.h"
 
 #include <trackbase_historic/ActsTransformations.h>
+#include <trackbase/ClusterErrorPara.h>
 
 #include <fun4all/Fun4AllReturnCodes.h>
 #include <phool/PHCompositeNode.h>
@@ -593,9 +594,16 @@ SpacePointPtr PHActsSiliconSeeding::makeSpacePoint(
 				  localPos, mom);
 
   Acts::SymMatrix2 localCov = Acts::SymMatrix2::Zero();
-  localCov(0,0) = clus->getActsLocalError(0,0) * Acts::UnitConstants::cm2;
-  localCov(1,1) = clus->getActsLocalError(1,1) * Acts::UnitConstants::cm2;
-  
+  if(m_cluster_version==3){
+    localCov(0,0) = clus->getActsLocalError(0,0) * Acts::UnitConstants::cm2;
+    localCov(1,1) = clus->getActsLocalError(1,1) * Acts::UnitConstants::cm2;
+  }else if(m_cluster_version==4){
+    auto para_errors = _ClusErrPara.get_si_cluster_error(clus,key);
+    localCov(0,0) = para_errors.first* Acts::UnitConstants::cm2;
+    localCov(1,1) = para_errors.second* Acts::UnitConstants::cm2;
+  }
+	//     std::cout << "err clus: " << cluster->getActsLocalError(0,0) * Acts::UnitConstants::cm2*cluster->getActsLocalError(0,0) * Acts::UnitConstants::cm2 << " | " << cluster->getActsLocalError(1,1) * Acts::UnitConstants::cm2*cluster->getActsLocalError(1,1) * Acts::UnitConstants::cm2 << " err para " <<  para_errors.first << " | " << para_errors.second << std::endl;
+    
   float x = globalPos.x();
   float y = globalPos.y();
   float z = globalPos.z();
@@ -626,7 +634,13 @@ SpacePointPtr PHActsSiliconSeeding::makeSpacePoint(
   // compute rho/z variance
   Acts::ActsVector<2> var = (jac * localCov * jac.transpose()).diagonal();
 
-  SpacePointPtr spPtr(new SpacePoint{key, x, y, z, r,  surf->geometryId(), var[0], var[1]});
+  /*
+   * From Acts v17 to v19 the scattering uncertainty value allowed was changed.
+   * This led to a decrease in efficiency. To offset this, we scale the 
+   * uncertainties by a tuned factor that gives the v17 performance
+   * Track reconstruction is an art as much as it is a science...
+   */
+  SpacePointPtr spPtr(new SpacePoint{key, x, y, z, r,  surf->geometryId(), var[0]*m_uncfactor, var[1]*m_uncfactor});
 
   if(Verbosity() > 2)
     std::cout << "Space point has " 
@@ -697,7 +711,7 @@ Acts::SpacePointGridConfig PHActsSiliconSeeding::configureSPGrid()
   config.deltaRMax = m_deltaRMax;
   config.cotThetaMax = m_cotThetaMax;
   config.impactMax = m_impactMax;
-  config.numPhiNeighbors = m_numPhiNeighbors;
+  config.phiBinDeflectionCoverage = m_numPhiNeighbors;
 
 
   return config;
