@@ -182,6 +182,8 @@ int SvtxEvaluator::Init(PHCompositeNode* /*topNode*/)
     _t_training->Branch("radius", &training_radius);
     _t_training->Branch("phi", &training_phi);
     _t_training->Branch("z", &training_z);
+    _t_training->Branch("phistep", &training_phistep);
+    _t_training->Branch("zstep", &training_zstep);
     _t_training->Branch("adc", &training_adc);
   }
 
@@ -1779,6 +1781,8 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
         training_radius = hits.radius;
         training_phi = hits.phi;
         training_z = hits.z;
+        training_phistep = hits.phistep;
+        training_zstep = hits.zstep;
         copy(hits.v_adc.cbegin(), hits.v_adc.cend(), training_adc.begin());
         _t_training->Fill();
       }

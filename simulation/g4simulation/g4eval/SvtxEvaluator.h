@@ -143,6 +143,8 @@ class SvtxEvaluator : public SubsysReco
   Float_t training_radius;
   Float_t training_phi;
   Float_t training_z;
+  Float_t training_phistep;
+  Float_t training_zstep;
   std::array<Short_t, 11*11> training_adc;
 
   TTree *_t_trackeval;
