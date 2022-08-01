@@ -312,9 +312,8 @@ namespace
       auto training_hits = new TrainingHits;
       training_hits->radius = radius;
       training_hits->phi = my_data.layergeom->get_phicenter(iphi_center+my_data.phioffset);
-      double center_t = my_data.layergeom->get_zcenter(it_center+my_data.toffset);
-      double center_zdriftlength = center_t * my_data.tGeometry->get_drift_velocity();
-      training_hits->z = my_data.m_tdriftmax * my_data.tGeometry->get_drift_velocity() - center_zdriftlength;
+      double center_t = my_data.layergeom->get_zcenter(it_center+my_data.toffset) + my_data.sampa_tbias;
+      training_hits->z = (my_data.m_tdriftmax - center_t) * my_data.tGeometry->get_drift_velocity();
       if(my_data.side == 0)
         training_hits->z = -training_hits->z;
       training_hits->phistep = my_data.layergeom->get_phistep();
@@ -482,7 +481,7 @@ namespace
           nn_global *= Acts::UnitConstants::cm;
           Acts::Vector3 nn_local = surface->transform(my_data.tGeometry->geometry().geoContext).inverse() * nn_global;
           nn_local /= Acts::UnitConstants::cm;
-          float nn_t = my_data.m_tdriftmax - fabs(nn_z) / my_data.tGeometry->get_drift_velocity() + my_data.sampa_tbias;
+          float nn_t = my_data.m_tdriftmax - fabs(nn_z) / my_data.tGeometry->get_drift_velocity();
           clus_base->setLocalX(nn_local(0));
           clus_base->setLocalY(nn_t);
         }
