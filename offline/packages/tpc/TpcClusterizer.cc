@@ -459,7 +459,7 @@ namespace
 	
       }
 
-      if(use_nn && ntouch > 0)
+      if(use_nn)
       {
         try
         {
@@ -468,8 +468,6 @@ namespace
           inputs.emplace_back(torch::stack({
                 torch::from_blob(std::vector<float>(training_hits->v_adc.begin(), training_hits->v_adc.end()).data(), {1, 2*nd+1, 2*nd+1}, torch::kFloat32),
                 torch::full({1, 2*nd+1, 2*nd+1}, std::clamp((training_hits->layer - 7) / 16, 0, 2), torch::kFloat32),
-                torch::full({1, 2*nd+1, 2*nd+1}, cos(training_hits->phi), torch::kFloat32),
-                torch::full({1, 2*nd+1, 2*nd+1}, sin(training_hits->phi), torch::kFloat32),
                 torch::full({1, 2*nd+1, 2*nd+1}, training_hits->z / radius, torch::kFloat32)
                 }, 1));
 
