@@ -61,7 +61,7 @@ class TpcClusterizer : public SubsysReco
 
   // TPC shaping offset correction parameter
   // From Tony Frawley July 5, 2022
-  double m_sampa_tbias = 13.5;  // ns  
+  double m_sampa_tbias = 39.6;  // ns  
 
   TrainingHitsContainer *m_training;
 };
