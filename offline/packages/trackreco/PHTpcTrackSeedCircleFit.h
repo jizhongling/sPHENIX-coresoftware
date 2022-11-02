@@ -35,8 +35,6 @@ class PHTpcTrackSeedCircleFit : public SubsysReco
   void use_truth_clusters(bool truth)
   { _use_truth_clusters = truth; }
 
-  void do_reset_clus_error(int doit) { _do_reset_clus_err = doit; }
-  void set_fixed_error(int fix) { _fix_error = fix; }
   void set_track_map_name(const std::string &map_name) { _track_map_name = map_name; }
   void SetIteration(int iter){_n_iteration = iter;} 
 
@@ -58,8 +56,6 @@ class PHTpcTrackSeedCircleFit : public SubsysReco
   TpcDistortionCorrection _distortionCorrection;
 
   int _n_iteration = 0;
-  int _do_reset_clus_err = 0;
-  int _fix_error = 0;
   std::string _track_map_name = "SvtxTrackMap";
 
 };
