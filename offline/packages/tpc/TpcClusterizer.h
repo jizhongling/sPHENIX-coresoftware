@@ -18,8 +18,6 @@ class TrainingHitsContainer;
 class PHG4TpcCylinderGeom;
 class PHG4TpcCylinderGeomContainer;
 
-//typedef std::pair<int, int> iphiz;
-//typedef std::pair<double, iphiz> ihit;
 typedef std::pair<unsigned short, unsigned short> iphiz;
 typedef std::pair<unsigned short, iphiz> ihit;
 
