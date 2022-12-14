@@ -12,7 +12,7 @@ OFFLINE_MAIN = /cvmfs/sphenix.sdcc.bnl.gov/gcc-8.3/release/release_new/new
 AM_CPPFLAGS = \
   -I$(includedir) \
   -I$(OFFLINE_MAIN)/include  \
-  -isystem$(ROOTSYS)/include
+  -I$(ROOTSYS)/include 
 
 AM_LDFLAGS = \
   -L$(libdir) \
@@ -30,7 +30,8 @@ pkginclude_HEADERS = \
   TpcDistortionCorrection.h \
   TpcDistortionCorrectionContainer.h \
   TpcLoadDistortionCorrection.h \
-	 TpcSimpleClusterizer.h
+  TpcRawWriter.h \
+  TpcSimpleClusterizer.h
 
 ROOTDICTS = \
   TrainingHitsContainer_Dict.cc \
@@ -46,13 +47,15 @@ libtpc_la_SOURCES = \
   TpcClusterCleaner.cc \
   TpcClusterizer.cc \
   TpcLoadDistortionCorrection.cc \
-	 TpcSimpleClusterizer.cc
+  TpcRawWriter.cc \
+  TpcSimpleClusterizer.cc
 
 libtpc_la_LIBADD = \
   libtpc_io.la \
   -lc10 \
   -ltorch_cpu \
   -ltorch \
+  -lmicromegas_io \
   -lfun4all \
   -lSpectrum \
   -lpthread
