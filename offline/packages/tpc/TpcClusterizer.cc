@@ -1,3 +1,7 @@
+// One-stop header
+// Must include first to avoid conflict with "ClassDef" in Rtypes.h
+#include <torch/script.h>
+
 #include "TpcClusterizer.h"
 
 #include "TrainingHitsContainer.h"
@@ -34,9 +38,6 @@
 #include <phool/PHObject.h>                             // for PHObject
 #include <phool/getClass.h>
 #include <phool/phool.h>  // for PHWHERE
-
-// One-stop header
-#include <torch/script.h>
 
 #include <TMatrixFfwd.h>    // for TMatrixF
 #include <TMatrixT.h>       // for TMatrixT, ope...
@@ -288,7 +289,7 @@ namespace
 	  }
 	  return;
 	}
-  
+
     void calc_cluster_parameter(const int iphi_center, const int it_center,
         const std::vector<ihit> &ihit_list, thread_data& my_data, int ntouch, int nedge )
     {

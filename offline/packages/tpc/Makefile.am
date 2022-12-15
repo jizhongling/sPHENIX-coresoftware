@@ -7,8 +7,6 @@ lib_LTLIBRARIES = \
   libtpc_io.la \
   libtpc.la
 
-OFFLINE_MAIN = /cvmfs/sphenix.sdcc.bnl.gov/gcc-8.3/release/release_new/new
-
 AM_CPPFLAGS = \
   -I$(includedir) \
   -I$(OFFLINE_MAIN)/include  \
