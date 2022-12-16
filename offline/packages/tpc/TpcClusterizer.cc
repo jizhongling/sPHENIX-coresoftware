@@ -469,7 +469,7 @@ namespace
 	}
       }
 
-      if(use_nn)
+      if(use_nn && clus_base)
       {
         try
         {
