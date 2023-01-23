@@ -21,6 +21,7 @@
 #include <trackbase_historic/ActsTransformations.h>
 #include <trackbase_historic/SvtxAlignmentStateMap.h>
 
+#include <ActsExamples/EventData/Trajectories.hpp>
 class PHCompositeNode;
 class PHG4TpcCylinderGeomContainer;
 class SvtxTrack;
@@ -67,6 +68,7 @@ class MakeMilleFiles : public SubsysReco
   void set_mms_grouping(int group) { mms_group = (mmsGroup) group; }
   void set_layer_fixed(unsigned int layer);
   void set_layer_param_fixed(unsigned int layer, unsigned int param);
+  void set_cluster_version(unsigned int v) { _cluster_version = v; }
 
  private:
   Mille* _mille;
@@ -83,6 +85,7 @@ class MakeMilleFiles : public SubsysReco
 
   bool is_layer_fixed(unsigned int layer);
   bool is_layer_param_fixed(unsigned int layer, unsigned int param);
+  void printBuffers(int index, Acts::Vector3 residual, Acts::Vector3 clus_sigma, float lcl_derivative[], float glbl_derivative[], int glbl_label[]);
 
   void addTrackToMilleFile(SvtxAlignmentStateMap::StateVec statevec);
 
