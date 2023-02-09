@@ -323,7 +323,7 @@ namespace
       int clus_size = ihit_list.size();
       
       if(clus_size == 1) return;
-      
+
       // training information
       auto training_hits = new TrainingHits;
       training_hits->radius = radius;
@@ -516,7 +516,7 @@ namespace
           std::cout << PHWHERE << "Error: Failed to execute NN modules" << std::endl;
         }
       } // use_nn
-      
+
       //std::cout << "end clus out" << std::endl;
       //      if(my_data.do_assoc && my_data.clusterhitassoc){
       if(my_data.do_assoc)

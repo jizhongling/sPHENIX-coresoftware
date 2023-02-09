@@ -693,7 +693,7 @@ TrackEvaluationContainerv1::ClusterStruct TrackEvaluation::create_cluster( TrkrD
   cluster_struct.trk_alpha = 0.0;
   cluster_struct.trk_beta = 0.0;
   ClusterErrorPara ClusErrPara;
-  if(track!=0){
+  if(track!=0 && si_seed!=0 && tpc_seed!=0){
     float r = cluster_struct.r;
     if(cluster_struct.layer>7){
       auto para_errors_mm = ClusErrPara.get_cluster_error(tpc_seed,cluster,r,key);
