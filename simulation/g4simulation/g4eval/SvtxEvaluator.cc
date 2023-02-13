@@ -3652,7 +3652,7 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 
   if (_t_trackeval)
   {
-    auto trackeval = findNode::getClass<TrackEvaluationContainerv1>(topNode, "TrackEvaluationContainer");
+    auto trackeval = findNode::getClass<TrackEvaluationContainerv1>(topNode, "TrackMatchEvalContainer");
     if (trackeval)
       v_tracks = trackeval->tracks();
     _t_trackeval->Fill();

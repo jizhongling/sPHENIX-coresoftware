@@ -1,6 +1,8 @@
 #include "TruthRecoTrackMatching.h"
 
 #include <g4main/PHG4TruthInfoContainer.h>
+#include <g4main/PHG4Particle.h>
+#include <g4main/PHG4VtxPoint.h>
 #include <g4detectors/PHG4TpcCylinderGeom.h>
 #include <g4detectors/PHG4TpcCylinderGeomContainer.h>
 
@@ -22,6 +24,7 @@
 #include <trackbase/TrkrCluster.h>
 #include <trackbase/TrkrClusterContainer.h>
 #include <trackbase/TrkrDefs.h>
+#include <trackbase/TrackFitUtils.h>
 #include <trackbase/TrkrTruthTrack.h>
 #include <trackbase/TrkrTruthTrackContainer.h>
 #include <trackbase_historic/SvtxTrack.h>
@@ -44,6 +47,21 @@ using std::get;
 using std::array;
 using std::endl;
 using std::cout;
+
+//! square
+template<class T> inline constexpr T square( const T& x ) { return x*x; }
+
+//! radius
+template<class T> inline constexpr T get_r( T x, T y ) { return std::sqrt( square(x) + square(y) ); }
+
+//! pt
+template<class T> T get_pt( T px, T py ) { return std::sqrt( square(px) + square(py) ); }
+
+//! p
+template<class T> T get_p( T px, T py, T pz ) { return std::sqrt( square(px) + square(py) + square(pz) ); }
+
+//! eta
+template<class T> T get_eta( T p, T pz ) { return std::log( (p+pz)/(p-pz) )/2; }
 
 TruthRecoTrackMatching::TruthRecoTrackMatching
       ( const unsigned short _nmincluster_match
@@ -96,6 +114,14 @@ int TruthRecoTrackMatching::process_event(PHCompositeNode* topnode)  //`
     return Fun4AllReturnCodes::ABORTRUN;
   }
   if (Verbosity()>1000) topnode->print(); // perhaps not needed
+
+  // cleanup output container
+  if (m_TrackEvalContainer) {
+    m_TrackEvalContainer->Reset();
+    m_TrackEvalContainer->clearEvents();
+    m_TrackEvalContainer->clearClusters();
+    m_TrackEvalContainer->clearTracks();
+  }
 
   // -------------------------------------------------------------------------------
   // Build recoData
@@ -291,6 +317,10 @@ int TruthRecoTrackMatching::createNodes(PHCompositeNode* topNode)
     m_EmbRecoMatchContainer = new EmbRecoMatchContainerv1;
     auto newNode = new PHIODataNode<PHObject>(m_EmbRecoMatchContainer, "TRKR_EMBRECOMATCHCONTAINER", "PHObject");
     DetNode->addNode(newNode);
+
+    m_TrackEvalContainer = new TrackEvaluationContainerv1;
+    auto newNode2 = new PHIODataNode<PHObject>(m_TrackEvalContainer, "TrackMatchEvalContainer", "PHObject");
+    DetNode->addNode(newNode2);
   }
   
   m_ActsGeometry = findNode::getClass<ActsGeometry>(topNode, "ActsGeometry");
@@ -420,6 +450,8 @@ void TruthRecoTrackMatching::match_tracks_in_box(
   std::sort(box_pairs.begin(), box_pairs.end()); // sorted by first index_true, then id_reco
 
   vector<PossibleMatch> poss_matches;
+  vector<std::map<TrkrDefs::cluskey,TrkrDefs::cluskey>> v_clusmap; // key_reco, key_true
+  unsigned short index_clusmap = 0;
 
   auto ipair = box_pairs.begin(); // keep track of current examined pair
   while (ipair != box_pairs.end()) {
@@ -452,6 +484,7 @@ void TruthRecoTrackMatching::match_tracks_in_box(
       unsigned short nclus_match   = 0; // fill in the comparison loop
       unsigned short nclus_nomatch = 0; // number of reco and truth cluster that share a hitsetkey, but still fair matching criteria
       unsigned short nclus_reco    = 0; // count in the comparison loop
+      std::map<TrkrDefs::cluskey,TrkrDefs::cluskey> clus_map; // key_reco, key_true
       SvtxTrack* reco_track = m_SvtxTrackMap->get(ipair->second);
       auto tpcseed = reco_track->get_tpc_seed();
       if (tpcseed) {
@@ -462,6 +495,8 @@ void TruthRecoTrackMatching::match_tracks_in_box(
             // reco and truth cluster are in same hitsetkey-indexed subsurface. See if they match (++nclus_match) or not (++nclus_nomatch)
             if (compare_cluster_pair(truth_keys[hitsetkey], *r_key, hitsetkey).first) {
               ++nclus_match;
+              if (clus_map.count(*r_key) == 0)
+                clus_map.insert({*r_key, truth_keys[hitsetkey]});
             } else {
               ++nclus_nomatch;
             }
@@ -484,7 +519,9 @@ void TruthRecoTrackMatching::match_tracks_in_box(
           && ( static_cast<float>(nclus_match)/nclus_true >= m_nmincluster_ratio)
          ) {
         if (Verbosity()>100) cout << " Y" << endl;
-        poss_matches.push_back( {nclus_match, nclus_true, nclus_reco, ipair->first, ipair->second} );
+        poss_matches.push_back( {nclus_match, nclus_true, nclus_reco, ipair->first, ipair->second, index_clusmap} );
+        v_clusmap.push_back(clus_map);
+        index_clusmap++;
       } else {
         if (Verbosity()>100) cout << " N" << endl;
       }
@@ -548,6 +585,7 @@ void TruthRecoTrackMatching::match_tracks_in_box(
       auto save_match = new EmbRecoMatchv1( id_true, id_reco,
           match[PM_ntrue], match[PM_nreco], match[PM_nmatch]);
       m_EmbRecoMatchContainer->addMatch(save_match);
+      add_match_eval(id_reco, id_true, v_clusmap[match[PM_clusmap]]);
 
       if (m_nmatched_index_true.find(index_true) == m_nmatched_index_true.end()) {
         m_nmatched_index_true[index_true] = 1;
@@ -681,4 +719,99 @@ bool TruthRecoTrackMatching::at_nmax_id_reco(unsigned short id_reco) {
     return false;
   }
   return (*m_nmatched_id_reco)[id_reco] >= m_max_ntruth_per_reco;
+}
+
+void TruthRecoTrackMatching::add_match_eval(unsigned short id_reco, unsigned short id_true,
+    std::map<TrkrDefs::cluskey,TrkrDefs::cluskey> cluskey_map)
+{
+  if ( !(m_TrackEvalContainer && m_ActsGeometry) )
+    return;
+
+  SvtxTrack* track = m_SvtxTrackMap->get(id_reco);
+  TrackEvaluationContainerv1::TrackStruct track_struct;
+
+  track_struct.charge = track->get_charge();
+  track_struct.nclusters = track->size_cluster_keys();
+  track_struct.chisquare = track->get_chisq();
+  track_struct.ndf = track->get_ndf();
+
+  track_struct.x = track->get_x();
+  track_struct.y = track->get_y();
+  track_struct.z = track->get_z();
+  track_struct.r = get_r( track_struct.x, track_struct.y );
+  track_struct.phi = std::atan2( track_struct.y, track_struct.x );
+
+  track_struct.px = track->get_px();
+  track_struct.py = track->get_py();
+  track_struct.pz = track->get_pz();
+  track_struct.pt = get_pt( track_struct.px, track_struct.py );
+  track_struct.p = get_p( track_struct.px, track_struct.py, track_struct.pz );
+  track_struct.eta = get_eta( track_struct.p, track_struct.pz );
+
+  // get particle
+  auto particle = m_PHG4TruthInfoContainer->GetParticle(id_true);
+  if (particle)
+  {
+    PHG4VtxPoint* vtx  = m_PHG4TruthInfoContainer->GetVtx(particle->get_vtx_id());
+    track_struct.embed = m_PHG4TruthInfoContainer->isEmbeded(particle->get_primary_id());
+    track_struct.is_primary = particle->get_parent_id() == 0;
+    track_struct.pid = particle->get_pid();
+    track_struct.gtrackID = particle->get_track_id();
+    track_struct.truth_t = vtx->get_t();
+    track_struct.truth_px = particle->get_px();
+    track_struct.truth_py = particle->get_py();
+    track_struct.truth_pz = particle->get_pz();
+    track_struct.truth_pt = get_pt( track_struct.truth_px, track_struct.truth_py );
+    track_struct.truth_p = get_p( track_struct.truth_px, track_struct.truth_py, track_struct.truth_pz );
+    track_struct.truth_eta = get_eta( track_struct.truth_p, track_struct.truth_pz );
+  }
+
+  // loop over clusters
+  TrackFitUtils::position_vector_t xy_pts;
+  for (const auto& key_pair : cluskey_map)
+  {
+    auto key_R = key_pair.first;
+    auto key_T = key_pair.second;
+    auto clus_R = m_RecoClusterContainer->findCluster(key_R);
+    auto clus_T = m_TruthClusterContainer->findCluster(key_T);
+    if ( !(clus_R && clus_T) )
+    {
+      std::cout << "TruthRecoTrackMatching::add_match_eval - unable to find cluster for key " << clus_R << ":" << clus_T << std::endl;
+      continue;
+    }
+
+    // create new cluster struct
+    Acts::Vector3 global;
+    global = m_ActsGeometry->getGlobalPosition(key_R, clus_R);
+    TrackEvaluationContainerv1::ClusterStruct cluster_struct;
+    cluster_struct.key = key_R;
+    cluster_struct.layer = TrkrDefs::getLayer(key_R);
+    cluster_struct.x = global.x();
+    cluster_struct.y = global.y();
+    cluster_struct.z = global.z();
+    cluster_struct.r = get_r( cluster_struct.x, cluster_struct.y );
+    cluster_struct.phi = std::atan2( cluster_struct.y, cluster_struct.x );
+
+    // truth information
+    global = m_ActsGeometry->getGlobalPosition(key_T, clus_T);
+    cluster_struct.truth_x = global.x();
+    cluster_struct.truth_y = global.y();
+    cluster_struct.truth_z = global.z();
+    cluster_struct.truth_r = get_r( cluster_struct.truth_x, cluster_struct.truth_y );
+    cluster_struct.truth_phi = std::atan2( cluster_struct.truth_y, cluster_struct.truth_x );
+
+    // add to track
+    track_struct.clusters.push_back( cluster_struct );
+
+    // add to fitting points
+    xy_pts.push_back(std::make_pair(cluster_struct.x, cluster_struct.y));
+  }
+
+  // calculate R, X0, and Y0 values
+  auto [R, X0, Y0] = TrackFitUtils::circle_fit_by_taubin(xy_pts);
+  track_struct.R = R;
+  track_struct.X0 = X0;
+  track_struct.Y0 = Y0;
+
+  m_TrackEvalContainer->addTrack( track_struct );
 }

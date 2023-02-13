@@ -1,6 +1,8 @@
 #ifndef TRUTHTRKMATCHER__H
 #define TRUTHTRKMATCHER__H
 
+#include "TrackEvaluationContainerv1.h"
+
 #include <fun4all/SubsysReco.h> 
 #include <trackbase/ActsGeometry.h>
 #include <trackbase/TrkrDefs.h>
@@ -126,6 +128,7 @@ class TruthRecoTrackMatching : public SubsysReco
 
     // Output data node:
     EmbRecoMatchContainer   *m_EmbRecoMatchContainer   {nullptr};
+    TrackEvaluationContainerv1 *m_TrackEvalContainer   {nullptr};
 
     //--------------------------------------------------
     //    RECO data for a "table" of reconstructed tracks
@@ -162,13 +165,14 @@ class TruthRecoTrackMatching : public SubsysReco
     //    PossibleMatches (just array<unsinged short, 5>)
     //--------------------------------------------------
   public:
-    using PossibleMatch = std::array<unsigned short, 5>;
+    using PossibleMatch = std::array<unsigned short, 6>;
   private:
     static constexpr int PM_nmatch  = 0;
     static constexpr int PM_ntrue  = 1;
     static constexpr int PM_nreco  = 2;
     static constexpr int PM_idtrue = 3;
     static constexpr int PM_idreco = 4;
+    static constexpr int PM_clusmap = 5;
     struct SortPossibleMatch  {
       // Sort by most matched clusters first, then smallest number of truth clusters, then smallest number of reco clusters
       bool operator() (const PossibleMatch& lhs, const PossibleMatch& rhs) { 
@@ -211,6 +215,9 @@ class TruthRecoTrackMatching : public SubsysReco
     std::pair<bool, float> compare_cluster_pair(TrkrDefs::cluskey key_T,
         TrkrDefs::cluskey key_R, TrkrDefs::hitsetkey key, bool
         calc_sigma=false);
+
+    void add_match_eval(unsigned short id_reco, unsigned short id_true,
+        std::map<TrkrDefs::cluskey,TrkrDefs::cluskey> cluskey_map);
 };
 
 
