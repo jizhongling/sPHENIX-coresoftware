@@ -152,6 +152,9 @@ void TpcClusterBuilder::cluster_and_reset(bool clear_hitsetkey_cnt) {
       continue;
     }
 
+    // SAMPA shaping bias correction
+    clust = clust + m_sampa_tbias;
+
     global *= Acts::UnitConstants::cm;
 
     Acts::Vector3 local=surface->transform(m_tGeometry->geometry().getGeoContext()).inverse() * global;
