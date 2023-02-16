@@ -243,6 +243,9 @@ class TrackEvaluationContainerv1: public TrackEvaluationContainer
     int embed = 0;
     bool is_primary = false;
     int gtrackID = 0;
+    float truth_x = 0;
+    float truth_y = 0;
+    float truth_z = 0;
     float truth_t = 0;
 
     // number of g4hits from this MC track that match

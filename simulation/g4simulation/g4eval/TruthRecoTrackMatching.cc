@@ -757,6 +757,9 @@ void TruthRecoTrackMatching::add_match_eval(unsigned short id_reco, unsigned sho
     track_struct.is_primary = particle->get_parent_id() == 0;
     track_struct.pid = particle->get_pid();
     track_struct.gtrackID = particle->get_track_id();
+    track_struct.truth_x = vtx->get_x();
+    track_struct.truth_y = vtx->get_y();
+    track_struct.truth_z = vtx->get_z();
     track_struct.truth_t = vtx->get_t();
     track_struct.truth_px = particle->get_px();
     track_struct.truth_py = particle->get_py();
