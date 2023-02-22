@@ -730,6 +730,7 @@ void TruthRecoTrackMatching::add_match_eval(unsigned short id_reco, unsigned sho
   SvtxTrack* track = m_SvtxTrackMap->get(id_reco);
   TrackEvaluationContainerv1::TrackStruct track_struct;
 
+  track_struct.trackID = track->get_id();
   track_struct.charge = track->get_charge();
   track_struct.nclusters = track->size_cluster_keys();
   track_struct.chisquare = track->get_chisq();
@@ -739,7 +740,6 @@ void TruthRecoTrackMatching::add_match_eval(unsigned short id_reco, unsigned sho
   track_struct.y = track->get_y();
   track_struct.z = track->get_z();
   track_struct.r = get_r( track_struct.x, track_struct.y );
-  track_struct.phi = std::atan2( track_struct.y, track_struct.x );
 
   track_struct.px = track->get_px();
   track_struct.py = track->get_py();
@@ -747,26 +747,30 @@ void TruthRecoTrackMatching::add_match_eval(unsigned short id_reco, unsigned sho
   track_struct.pt = get_pt( track_struct.px, track_struct.py );
   track_struct.p = get_p( track_struct.px, track_struct.py, track_struct.pz );
   track_struct.eta = get_eta( track_struct.p, track_struct.pz );
+  track_struct.phi = std::atan2( track_struct.py, track_struct.px );
 
   // get particle
   auto particle = m_PHG4TruthInfoContainer->GetParticle(id_true);
   if (particle)
   {
-    PHG4VtxPoint* vtx  = m_PHG4TruthInfoContainer->GetVtx(particle->get_vtx_id());
     track_struct.embed = m_PHG4TruthInfoContainer->isEmbeded(particle->get_primary_id());
     track_struct.is_primary = particle->get_parent_id() == 0;
     track_struct.pid = particle->get_pid();
     track_struct.gtrackID = particle->get_track_id();
+
+    PHG4VtxPoint* vtx  = m_PHG4TruthInfoContainer->GetVtx(particle->get_vtx_id());
     track_struct.truth_x = vtx->get_x();
     track_struct.truth_y = vtx->get_y();
     track_struct.truth_z = vtx->get_z();
     track_struct.truth_t = vtx->get_t();
+
     track_struct.truth_px = particle->get_px();
     track_struct.truth_py = particle->get_py();
     track_struct.truth_pz = particle->get_pz();
     track_struct.truth_pt = get_pt( track_struct.truth_px, track_struct.truth_py );
     track_struct.truth_p = get_p( track_struct.truth_px, track_struct.truth_py, track_struct.truth_pz );
     track_struct.truth_eta = get_eta( track_struct.truth_p, track_struct.truth_pz );
+    track_struct.truth_phi = std::atan2( track_struct.truth_py, track_struct.truth_px );
   }
 
   // loop over clusters

@@ -199,6 +199,7 @@ class TrackEvaluationContainerv1: public TrackEvaluationContainer
 
     using List = std::vector<TrackStruct>;
 
+    int trackID = 0;
     int charge = 0;
     int nclusters = 0;
     int64_t mask = 0;
@@ -257,6 +258,7 @@ class TrackEvaluationContainerv1: public TrackEvaluationContainer
     float truth_pt = 0;
     float truth_p = 0;
     float truth_eta = 0;
+    float truth_phi = 0;
     //@}
 
     // associate clusters
