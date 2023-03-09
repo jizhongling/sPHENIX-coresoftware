@@ -7,6 +7,10 @@ lib_LTLIBRARIES = \
   libtpc_io.la \
   libtpc.la
 
+mydatadir = $(datadir)/$(PACKAGE)
+dist_mydata_DATA = \
+  net_model.pt
+
 AM_CPPFLAGS = \
   -I$(includedir) \
   -I$(OFFLINE_MAIN)/include  \

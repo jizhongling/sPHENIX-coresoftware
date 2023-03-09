@@ -71,7 +71,7 @@ namespace
   };
 
   // Neural network parameters and modules
-  bool use_nn = true;
+  bool use_nn = false;
   const int nd = 5;
   torch::jit::script::Module module_pos;
 
@@ -830,18 +830,19 @@ int TpcClusterizer::InitRun(PHCompositeNode *topNode)
   use_nn = _use_nn;
   if(use_nn)
   {
-    const char *fileroot = "/gpfs/mnt/gpfs02/phenix/plhf/plhf1/zji/github/sphenix/coresoftware/offline/packages/tpc/modules/net_model";
-    char filename[200];
+    //const char *offline_main = std::getenv("OFFLINE_MAIN");
+    const char *offline_main = std::getenv("MYINSTALL");
+    assert(offline_main);
+    std::string net_model = std::string(offline_main) + "/share/tpc/net_model.pt";
     try
     {
       // Deserialize the ScriptModule from a file using torch::jit::load()
-      sprintf(filename, "%s-type1-nout1.pt", fileroot);
-      module_pos = torch::jit::load(filename);
-      std::cout << PHWHERE << "Load NN module: " << filename << std::endl;
+      module_pos = torch::jit::load(net_model);
+      std::cout << PHWHERE << "Load NN module: " << net_model << std::endl;
     }
     catch(const c10::Error &e)
     {
-      std::cout << PHWHERE << "Error: Cannot load module " << filename << std::endl;
+      std::cout << PHWHERE << "Error: Cannot load module " << net_model << std::endl;
       exit(1);
     }
   }
