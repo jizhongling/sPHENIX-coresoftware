@@ -1,6 +1,10 @@
 // One-stop header
 // Must include first to avoid conflict with "ClassDef" in Rtypes.h
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 #include <torch/script.h>
+#pragma GCC diagnostic pop
 
 #include "TpcClusterizer.h"
 
@@ -11,6 +15,7 @@
 #include <trackbase/TrkrClusterContainerv4.h>
 #include <trackbase/TrkrClusterv3.h>
 #include <trackbase/TrkrClusterv4.h>
+#include <trackbase/TrkrClusterv5.h>
 #include <trackbase/TrkrClusterHitAssocv3.h>
 #include <trackbase/TrkrDefs.h>  // for hitkey, getLayer
 #include <trackbase/TrkrHit.h>
@@ -321,7 +326,7 @@ namespace
       int tbinhi = -1;
       int tbinlo = 666666;
       int clus_size = ihit_list.size();
-      
+      int max_adc  = 0;
       if(clus_size == 1) return;
 
       // training information
@@ -345,7 +350,8 @@ namespace
 	double adc = iter->adc; 
 	
 	if (adc <= 0) continue;
-	
+	if(adc > max_adc)
+	  max_adc = adc;
 	int iphi = iter->iphi + my_data.phioffset;
 	int it   = iter->it + my_data.toffset;
 	if(iphi > phibinhi) phibinhi = iphi;
@@ -452,7 +458,7 @@ namespace
       
       TrkrCluster *clus_base = nullptr;
       if(my_data.cluster_version==3){
-	
+	//	std::cout << "ver3" << std::endl;
 	// Fill in the cluster details
 	//================
 	auto clus = new TrkrClusterv3;
@@ -468,12 +474,14 @@ namespace
 	clus->setActsLocalError(1,1, t_err_square * pow(my_data.tGeometry->get_drift_velocity(),2));
 	my_data.cluster_vector.push_back(clus);
       }else if(my_data.cluster_version==4){
+	//	std::cout << "ver4" << std::endl;
 	//	std::cout << "clus num" << my_data.cluster_vector.size() << " X " << local(0) << " Y " << clust << std::endl;
 	if(sqrt(phi_err_square) > 0.01){
 	auto clus = new TrkrClusterv4;
 	//auto clus = std::make_unique<TrkrClusterv3>();
         clus_base = clus;
 	clus->setAdc(adc_sum);  
+	clus->setMaxAdc(max_adc);  
 	clus->setOverlap(ntouch);
 	clus->setEdge(nedge);
 	clus->setPhiSize(phisize);
@@ -481,6 +489,26 @@ namespace
 	clus->setSubSurfKey(subsurfkey);      
 	clus->setLocalX(local(0));
 	clus->setLocalY(clust);
+	//	clus->setPhiErr(sqrt(phi_err_square));
+	//clus->setZErr(sqrt(t_err_square * pow(my_data.tGeometry->get_drift_velocity(),2)));
+	my_data.cluster_vector.push_back(clus);
+	}
+      }else if(my_data.cluster_version==5){
+	//	std::cout << "clus num" << my_data.cluster_vector.size() << " X " << local(0) << " Y " << clust << std::endl;
+	if(sqrt(phi_err_square) > 0.01){
+	auto clus = new TrkrClusterv5;
+	//auto clus = std::make_unique<TrkrClusterv3>();
+        clus_base = clus;
+	clus->setAdc(adc_sum);  
+	clus->setMaxAdc(max_adc); 
+	clus->setEdge(nedge);
+	clus->setPhiSize(phisize);
+	clus->setZSize(tsize);
+	clus->setSubSurfKey(subsurfkey);      
+	clus->setLocalX(local(0));
+	clus->setLocalY(clust);
+	clus->setPhiError(sqrt(phi_err_square));
+	clus->setZError(sqrt(t_err_square * pow(my_data.tGeometry->get_drift_velocity(),2)));
 	my_data.cluster_vector.push_back(clus);
 	}
       }
@@ -516,7 +544,7 @@ namespace
           std::cout << PHWHERE << "Error: Failed to execute NN modules" << std::endl;
         }
       } // use_nn
-
+	
       //std::cout << "end clus out" << std::endl;
       //      if(my_data.do_assoc && my_data.clusterhitassoc){
       if(my_data.do_assoc)
