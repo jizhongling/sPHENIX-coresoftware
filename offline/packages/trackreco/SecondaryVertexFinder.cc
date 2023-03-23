@@ -86,6 +86,11 @@ int SecondaryVertexFinder::InitRun(PHCompositeNode *topNode)
       
       ntp = new TNtuple("ntp","decay_pairs","x1:y1:z1:px1:py1:pz1:dca3dxy1:dca3dz1:vposx1:vposy1:vposz1:vmomx1:vmomy1:vmomz1:pca_relx_1:pca_rely_1:pca_relz_1:eta1:charge1:tpcClusters_1:quality1:eta1:x2:y2:z2:px2:py2:pz2:dca3dxy2:dca3dz2:vposx2:vposy2:vposz2:vmomx2:vmomy2:vmomz2:pca_relx_2:pca_rely_2:pca_relz_2:eta2:charge2:tpcClusters_2:quality2:eta2:vertex_x:vertex_y:vertex_z:pair_dca:invariant_mass:invariant_pt:path:has_silicon1:has_silicon2");
     }
+
+  if(_write_ntuple_v0)
+    {
+      ntp_v0 = new TNtuple("ntp_v0","bch_v0_daus","mother_pt:bch_pt:v0_pt:dau1_pt:dau2_pt:mother_eta:bch_eta:v0_eta:dau1_eta:dau2_eta:mother_m:v0_m:mother_path:v0_path:mother_decay_radius:v0_decay_radius:mother_costheta:v0_costheta:bch_dca:v0_dca:bchv0_dca:daus_dca:bch_charge:dau1_charge:dau2_charge:bch_quality:dau1_quality:dau2_quality:bch_nclus:dau1_nclus:dau2_nclus:vtx_r:vtx_z");
+    }
   
   return ret;
 }
@@ -338,11 +343,13 @@ int SecondaryVertexFinder::process_event(PHCompositeNode */*topNode*/)
 	      
 	      // calculate the invariant mass using the track states at the decay vertex
 
+              _decaymass = tr1->get_charge() > 0 ? 0.938272 : 0.139570;
 	      TLorentzVector t1;
 	      Float_t E1 = sqrt(pow(vmom1(0),2) + pow(vmom1(1),2) + pow(vmom1(2),2) 
 				+ pow(_decaymass,2));
 	      t1.SetPxPyPzE(vmom1(0),vmom1(1),vmom1(2),E1);	
 	      
+              _decaymass = tr2->get_charge() > 0 ? 0.938272 : 0.139570;
 	      TLorentzVector t2;
 	      Float_t E2 = sqrt(pow(vmom2(0),2) + pow(vmom2(1),2) + pow(vmom2(2),2) 
 				+ pow(_decaymass,2));
@@ -365,6 +372,28 @@ int SecondaryVertexFinder::process_event(PHCompositeNode */*topNode*/)
 		      std::cout << "    Pair mass " << tsum.M() << " pair pT " << tsum.Pt() 
 				<< " decay length " << path.norm() << std::endl;
 		    }
+
+                  if(_write_ntuple_v0)
+                    {
+                      Eigen::Vector3d v0_pos(PCA), v0_mom(vmom1+vmom2);
+                      auto q = v0_pos - VTX;
+                      auto qxl = q.cross(v0_mom);
+                      double v0_dca = qxl.norm();
+                      double daus_dca = pair_dca;
+
+                      double v0_pt = tsum.Pt();
+                      double v0_eta = tsum.Eta();
+                      double v0_m = tsum.M();
+                      double v0_path = path.norm();
+                      double v0_decay_radius = decay_radius;
+
+                      // Angle between path vector and reco pair momentum vector
+                      double v0_costheta = path.dot(v0_mom) / (path.norm() * v0_mom.norm());
+                      if(v0_costheta < _costheta_cut) continue;
+
+                      process_bachelor(id1, id2, tr1, tr2, v0_pos, v0_mom,
+                          v0_pt, v0_eta, v0_m, v0_path, v0_decay_radius, v0_costheta, v0_dca, daus_dca);
+                    }
 
 		  if(_write_ntuple)
 		    {
@@ -398,7 +427,7 @@ int SecondaryVertexFinder::process_event(PHCompositeNode */*topNode*/)
 
     }
 
-  if(Verbosity() > 0)
+  if(_track_map_electrons && Verbosity() > 0)
     {
       std::cout << PHWHERE << " electron track map size " << _track_map_electrons->size()  << std::endl;  
       for(auto tr_it = _track_map_electrons->begin(); tr_it != _track_map_electrons->end(); ++tr_it)
@@ -414,6 +443,230 @@ int SecondaryVertexFinder::process_event(PHCompositeNode */*topNode*/)
     }
 
   return Fun4AllReturnCodes::EVENT_OK;
+}
+
+void SecondaryVertexFinder::process_bachelor(
+    unsigned int dau1_id, unsigned int dau2_id,
+    SvtxTrack *dau1_tr, SvtxTrack *dau2_tr,
+    Eigen::Vector3d v0_pos, Eigen::Vector3d v0_mom,
+    double v0_pt, double v0_eta, double v0_m,
+    double v0_path, double v0_decay_radius,
+    double v0_costheta, double v0_dca, double daus_dca)
+{
+  auto vtxid      = dau1_tr->get_vertex_id();
+  auto svtxVertex = _svtx_vertex_map->get(vtxid);
+  if(!svtxVertex) return;
+  double vtx_x = svtxVertex->get_x();
+  double vtx_y = svtxVertex->get_y();
+  double vtx_z = svtxVertex->get_z();
+  double vtx_r = sqrt(vtx_x*vtx_x + vtx_y*vtx_y);
+
+  double dau1_px      = dau1_tr->get_px();
+  double dau1_py      = dau1_tr->get_py();
+  double dau1_pz      = dau1_tr->get_pz();
+  double dau1_pt      = sqrt(dau1_px*dau1_px + dau1_py*dau1_py);
+  double dau1_eta     = asinh(dau1_pz / dau1_pt);
+  double dau1_charge  = dau1_tr->get_charge();
+  double dau1_quality = dau1_tr->get_quality();
+  auto   dau1_seed    = dau1_tr->get_tpc_seed();
+  size_t dau1_nclus   = dau1_seed->size_cluster_keys();
+
+  double dau2_px      = dau2_tr->get_px();
+  double dau2_py      = dau2_tr->get_py();
+  double dau2_pz      = dau2_tr->get_pz();
+  double dau2_pt      = sqrt(dau2_px*dau2_px + dau2_py*dau2_py);
+  double dau2_eta     = asinh(dau2_pz / dau2_pt);
+  double dau2_charge  = dau2_tr->get_charge();
+  double dau2_quality = dau2_tr->get_quality();
+  auto   dau2_seed    = dau2_tr->get_tpc_seed();
+  size_t dau2_nclus   = dau2_seed->size_cluster_keys();
+
+  // Loop over bachelor tracks and check for DCA matches with the V0 track
+  for(auto tr1_it = _track_map->begin(); tr1_it != _track_map->end(); ++tr1_it)
+  {
+    auto id1 = tr1_it->first;
+    auto tr1 = tr1_it->second;
+    if (id1 == dau1_id || id1 == dau2_id || tr1->get_charge() >= 0) continue;
+
+    // Reverse or remove this to consider TPC-only tracks too
+    if(_require_mvtx && !hasSiliconSeed(tr1)) continue;
+
+    if(Verbosity() > 3)
+    {
+      std::cout << "Bachelor track1 " << id1 << " details: " << std::endl;
+      outputTrackDetails(tr1);
+    }
+
+    if(tr1->get_quality() > _qual_cut) continue;
+
+    auto tpc_seed1 = tr1->get_tpc_seed();
+    int ntpc1 = tpc_seed1->size_cluster_keys();
+    if(ntpc1 < 20) continue;
+
+    float dca3dxy1, dca3dz1,dca3dxysigma1, dca3dzsigma1;
+    get_dca(tr1, dca3dxy1, dca3dz1, dca3dxysigma1, dca3dzsigma1);
+    //std::cout << "   Bachelor tr1 " << id1 << " dca3dxy1 = " << dca3dxy1 << " dca3dz1 = " << dca3dz1 << std::endl;
+
+    if(!dca3dxy1)
+    {
+      std::cout << " Bachelor get_dca returned NAN " << std::endl;
+      continue;
+    }
+    if(fabs(dca3dxy1) < _track_dcaxy_cut) continue;
+    if(fabs(dca3dz1) < _track_dcaz_cut) continue;
+
+    double R1;
+    Eigen::Vector2d center1;
+    getCircleXYTrack(tr1, R1, center1);
+    if(Verbosity() > 2)
+    {
+      std::cout << std::endl << "Bachelor track 1 circle: " << std::endl;
+      std::cout <<  "  tr1.x " << tr1->get_x() << " tr1.y " << tr1->get_y() << " tr1.z " << tr1->get_z() << " charge " << tr1->get_charge() << std::endl;
+      std::cout << "   tr1.px " << tr1->get_px() << " tr1.py " << tr1->get_py() << " tr1.pz " << tr1->get_pz() << std::endl;
+      std::cout << "         track1 " << tr1->get_id() << " circle R " << R1 << " (x, y)  " << center1(0) << "  " << center1(1) << std::endl;
+    }
+
+    Eigen::Vector3d sec;
+    if(!circle_line_backsec(R1, center1, v0_pos, v0_mom, sec))
+    {
+      if(Verbosity() > 2) std::cout << "    - no intersections, skip this pair" << std::endl;
+      continue;
+    }
+
+    Eigen::Vector2d intersection(sec(0), sec(1));
+    double vradius = sqrt(intersection(0)*intersection(0) + intersection(1)*intersection(1));
+    if(vradius > _max_intersection_radius) continue;
+
+    double z1 = getZFromIntersectionXY(tr1, R1, center1, intersection);
+    double z2 = sec(2);
+    if(Verbosity() > 2)
+      std::cout << " Bachelor and V0 tracks intersection at (x,y) " << intersection(0) << "  " << intersection(1)
+        << " radius " << vradius << " est. z1 " << z1 << " est. z2 " << z2 << std::endl;
+
+    if(fabs(z1-z2) > 2.0)   // skip this intersection, it is not good
+    {
+      if(Verbosity() > 2) std::cout << "    Bachelor and V0 z-mismatch - wrong intersection, skip it " << std::endl;
+      continue;
+    }
+
+    Eigen::Vector3d vpos1(0,0,0), vmom1(0,0,0);
+    Eigen::Vector3d vpos2(sec), vmom2(v0_mom);
+
+    // Project the tracks to the intersection
+    Eigen::Vector3d intersect1(intersection(0), intersection(1), z1);
+    if(!projectTrackToPoint(tr1, intersect1, vpos1, vmom1)) continue;
+    if(Verbosity() > 2)
+    {
+      std::cout << "  Bachelor projected track to point " << intersect1(0) << "  " << intersect1(1) << "  " << intersect1(2) << std::endl;
+      std::cout <<  "                                 has vpos " << vpos1(0) << "  " << vpos1(1) << "  " << vpos1(2) << std::endl;
+      std::cout << "  V0 projected track to point " << intersect1(0) << "  " << intersect1(1) << "  " << intersect1(2) << std::endl;
+      std::cout <<  "                                 has vpos " << vpos2(0) << "  " << vpos2(1) << "  " << vpos2(2) << std::endl;
+    }
+
+    // check that the z positions are close
+    if(fabs(vpos1(2) - vpos2(2)) > _projected_track_z_cut)
+    {
+      if(Verbosity() > 0)
+        std::cout << "    Warning: bachelor projected z positions are screwed up, should not be" << std::endl;
+      continue;
+    }
+
+    if(Verbosity() > 2)
+    {
+      std::cout << "Summary for bachelor track:" << std::endl;
+      std::cout << " Fitted track: " << std::endl;
+      std::cout << "   tr1.x " << tr1->get_x() << " tr1.y " << tr1->get_y() << " tr1.z " << tr1->get_z() << std::endl;
+      std::cout << "   tr1.px " << tr1->get_px() << " tr1.py " << tr1->get_py() << " tr1.pz " << tr1->get_pz() << std::endl;
+      std::cout << " Projected track: " << std::endl;
+      std::cout << "   pos1.x " << vpos1(0) << " pos1.y " << vpos1(1) << " pos1.z " << vpos1(2) << std::endl;
+      std::cout << "   pos2.x " << vpos2(0) << " pos2.y " << vpos2(1) << " pos2.z " << vpos2(2) << std::endl;
+      std::cout << "   mom1.x " << vmom1(0) << " mom1.y " << vmom1(1) << " mom1.z " << vmom1(2) << std::endl;
+      std::cout << "   mom2.x " << vmom2(0) << " mom2.y " << vmom2(1) << " mom2.z " << vmom2(2) << std::endl;
+    }
+
+    // Improve the pair dca using a local straight line approximation
+    double pair_dca;
+    Eigen::Vector3d PCA1(0,0,0), PCA2(0,0,0);
+    findPcaTwoLines(vpos1, vmom1, vpos2, vmom2, pair_dca, PCA1, PCA2);
+    if(Verbosity() > 2)
+    {
+      std::cout << "       Bachelor and V0 pair_dca " << pair_dca << " two_track_dcacut " << _two_track_dcacut << std::endl;
+      std::cout << "       PCA1 " << PCA1(0) << "  " << PCA1(1) << "  " << PCA1(2) << std::endl;
+      std::cout << "       PCA2 " << PCA2(0) << "  " << PCA2(1) << "  " << PCA2(2) << std::endl;
+    }
+
+    if(fabs(pair_dca) > _two_track_dcacut) continue;
+
+    // calculate the invariant mass using the track states at the decay vertex
+
+    TLorentzVector t1;
+    Float_t E1 = sqrt(pow(vmom1(0),2) + pow(vmom1(1),2) + pow(vmom1(2),2)
+        + pow(0.493677,2));
+    t1.SetPxPyPzE(vmom1(0),vmom1(1),vmom1(2),E1);
+
+    TLorentzVector t2;
+    Float_t E2 = sqrt(pow(vmom2(0),2) + pow(vmom2(1),2) + pow(vmom2(2),2)
+        + pow(v0_m,2));
+    t2.SetPxPyPzE(vmom2(0),vmom2(1),vmom2(2),E2);
+
+    TLorentzVector tsum = t1+t2;
+
+    // calculate the decay length
+    Eigen::Vector3d PCA = (vpos1+vpos2) / 2.0;  // average the PCA of the track pair
+    auto vtxid = tr1->get_vertex_id();
+    auto vertex1 = _svtx_vertex_map->get(vtxid);
+    Eigen::Vector3d VTX(vertex1->get_x(), vertex1->get_y(), vertex1->get_z());
+    Eigen::Vector3d path = PCA - VTX;
+    double decay_radius = sqrt( pow(PCA(0),2) + pow(PCA(1),2) );
+
+    if(path.norm() > _min_path_cut)
+    {
+      if(Verbosity() > 0)
+      {
+        std::cout << "    Bachelor and V0 pair mass " << tsum.M() << " pair pT " << tsum.Pt()
+          << " decay length " << path.norm() << std::endl;
+      }
+
+      SvtxTrack *bch_tr = tr1;
+      double bch_px       = bch_tr->get_px();
+      double bch_py       = bch_tr->get_py();
+      double bch_pz       = bch_tr->get_pz();
+      double bch_pt       = sqrt(bch_px*bch_px + bch_py*bch_py);
+      double bch_eta      = asinh(bch_pz / bch_pt);
+      double bch_charge   = bch_tr->get_charge();
+      double bch_quality  = bch_tr->get_quality();
+      auto   bch_seed     = bch_tr->get_tpc_seed();
+      size_t bch_nclus    = bch_seed->size_cluster_keys();
+
+      double mother_pt = tsum.Pt();
+      double mother_eta = tsum.Eta();
+      double mother_m = tsum.M();
+      double mother_path = path.norm();
+      double mother_decay_radius = decay_radius;
+
+      // Angle between path vector and reco pair momentum vector
+      Eigen::Vector3d mother_mom(vmom1+vmom2);
+      double mother_costheta = path.dot(mother_mom) / (path.norm() * mother_mom.norm());
+      if(mother_costheta < _costheta_cut) continue;
+
+      double bch_dca = sqrt(dca3dxy1*dca3dxy1 + dca3dz1*dca3dz1);
+      double bchv0_dca = pair_dca;
+
+      float reco_info[] = {
+        (float) mother_pt, (float) bch_pt, (float) v0_pt, (float) dau1_pt, (float) dau2_pt,
+        (float) mother_eta, (float) bch_eta, (float) v0_eta, (float) dau1_eta, (float) dau2_eta,
+        (float) mother_m, (float) v0_m, (float) mother_path, (float) v0_path,
+        (float) mother_decay_radius, (float) v0_decay_radius,
+        (float) mother_costheta, (float) v0_costheta,
+        (float) bch_dca, (float) v0_dca, (float) bchv0_dca, (float) daus_dca,
+        (float) bch_charge, (float) dau1_charge, (float) dau2_charge,
+        (float) bch_quality, (float) dau1_quality, (float) dau2_quality,
+        (float) bch_nclus, (float) dau1_nclus, (float) dau2_nclus,
+        (float) vtx_r, (float) vtx_z};
+
+      ntp_v0->Fill(reco_info);
+    }
+  }
 }
 
 bool SecondaryVertexFinder::passConversionElectronCuts(TLorentzVector tsum, SvtxTrack* tr1, SvtxTrack* tr2, float pair_dca, Eigen::Vector3d PCA, Eigen::Vector3d VTX)
@@ -806,15 +1059,80 @@ bool SecondaryVertexFinder::circle_circle_intersection(double r0, double x0, dou
 
 }
 
+/* calculate intersection from circle to line in backward direction
+ * circle is defined as (x-xc)**2 + (y-yc)**2 = r**2
+ * line is defined as (x0,y0) + (px,py)*t
+ * backward direction requires t < 0
+ */
+bool SecondaryVertexFinder::circle_line_backsec(
+    double r, Eigen::Vector2d cen,
+    Eigen::Vector3d pos, Eigen::Vector3d mom,
+    Eigen::Vector3d &sec)
+{
+  double xc = cen(0);
+  double yc = cen(1);
+  double x0 = pos(0);
+  double y0 = pos(1);
+  double z0 = pos(2);
+  double px = mom(0);
+  double py = mom(1);
+  double pz = mom(2);
+
+  double a = px*px + py*py;
+  double b = 2 * (px * (x0 - xc) + py * (y0 - yc));
+  double c = xc*xc + yc*yc + x0*x0 + y0*y0 - 2 * (xc*x0 + yc*y0) - r*r;
+  double delta = b*b - 4*a*c;
+
+  if (delta > 0) {
+    // two intersection points
+    double t1 = (-b + sqrt(delta)) / (2 * a);
+    double t2 = (-b - sqrt(delta)) / (2 * a);
+    // backward direction
+    if (t1 < 0) {
+      sec(0) = x0 + px*t1;
+      sec(1) = y0 + py*t1;
+      sec(2) = z0 + pz*t1;
+      return true;
+    }
+    else if (t2 < 0) {
+      sec(0) = x0 + px*t2;
+      sec(1) = y0 + py*t2;
+      sec(2) = z0 + pz*t2;
+      return true;
+    }
+  }
+  else if (delta == 0) {
+    // one intersection point
+    double t = -b / (2 * a);
+    // backward direction
+    if (t < 0) {
+      sec(0) = x0 + px*t;
+      sec(1) = y0 + py*t;
+      sec(2) = z0 + pz*t;
+      return true;
+    }
+  }
+
+  // no intersection points at backward direction
+  return false;
+}
+
 int SecondaryVertexFinder::End(PHCompositeNode */*topNode*/)
 {
-  if(_write_ntuple)
+  if(_write_ntuple || _write_ntuple_v0)
     {
       TFile *fout = new TFile(outfile.c_str(),"recreate");
+      if(_write_ntuple)
+      {
       recomass->Write();
       hdecaypos->Write();
       hdecay_radius->Write();
       ntp->Write();
+      }
+      if(_write_ntuple_v0)
+      {
+      ntp_v0->Write();
+      }
       fout->Close();
     }
 

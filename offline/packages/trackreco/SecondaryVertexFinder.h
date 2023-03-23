@@ -68,15 +68,26 @@ class SecondaryVertexFinder : public SubsysReco
   int process_event(PHCompositeNode *topNode) override;
   int End(PHCompositeNode *topNode) override;
 
+  void process_bachelor(
+      unsigned int dau1_id, unsigned int dau2_id,
+      SvtxTrack *dau1_tr, SvtxTrack *dau2_tr,
+      Eigen::Vector3d v0_pos, Eigen::Vector3d v0_mom,
+      double v0_pt, double v0_eta, double v0_m,
+      double v0_path, double v0_decay_radius,
+      double v0_costheta, double v0_dca, double daus_dca);
+
   void setTrackDcaCut(const double cutxy, const double cutz) {_track_dcaxy_cut = cutxy; _track_dcaz_cut = cutz;}
  void setTwoTrackDcaCut(const double cut) {_two_track_dcacut = cut;}
  void setMinPathCut(const double cut) {_min_path_cut = cut;}
+ void setCosThetaCut(const double cut) {_costheta_cut = cut;}
+ void setProjTrackZCut(const double cut) {_projected_track_z_cut = cut;}
  void setTrackQualityCut(double cut) {_qual_cut = cut;}
  void setRequireMVTX(bool set) {_require_mvtx = set;}
  void setOutfileName(const std::string& filename) {outfile = filename;}
  void setDecayParticleMass(double mass) {_decaymass = mass;}
  void set_write_electrons_node(bool flag) {_write_electrons_node = flag;}
  void set_write_ntuple(bool flag) {_write_ntuple = flag;}
+ void set_write_ntuple_v0(bool flag) {_write_ntuple_v0 = flag;}
 
  private:
 
@@ -91,6 +102,7 @@ bool passConversionElectronCuts(TLorentzVector tsum,
   void outputTrackDetails(SvtxTrack *tr);
   void get_dca(SvtxTrack* track, float& dca3dxy, float& dca3dz, float& dca3dxysigma, float& dca3dzsigma);
   bool circle_circle_intersection(double r0, double x0, double y0, double r1, double x1, double y1, std::vector<double>& intersectionXY);
+  bool circle_line_backsec(double r, Eigen::Vector2d cen, Eigen::Vector3d pos, Eigen::Vector3d mom, Eigen::Vector3d &sec);
   Acts::BoundTrackParameters makeTrackParams(SvtxTrack* track);
   Acts::Vector3 getVertex(SvtxTrack* track);
   void findPcaTwoLines(Eigen::Vector3d pos1, Eigen::Vector3d mom1, Eigen::Vector3d pos2, Eigen::Vector3d mom2,
@@ -110,6 +122,7 @@ bool passConversionElectronCuts(TLorentzVector tsum,
  bool _require_mvtx = false;
  bool _write_electrons_node = true;
  bool _write_ntuple = false;
+ bool _write_ntuple_v0 = false;
 
  double _decaymass = 0.000511;  // conversion electrons, default 
 
@@ -141,6 +154,7 @@ bool passConversionElectronCuts(TLorentzVector tsum,
   TH2D *hdecaypos{nullptr};
   TH1D *hdecay_radius{nullptr};
   TNtuple *ntp{nullptr};
+  TNtuple *ntp_v0{nullptr};
   std::string outfile;
   
 };
