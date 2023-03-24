@@ -89,7 +89,7 @@ int SecondaryVertexFinder::InitRun(PHCompositeNode *topNode)
 
   if(_write_ntuple_v0)
     {
-      ntp_v0 = new TNtuple("ntp_v0","bch_v0_daus","mother_pt:bch_pt:v0_pt:dau1_pt:dau2_pt:mother_eta:bch_eta:v0_eta:dau1_eta:dau2_eta:mother_m:v0_m:mother_path:v0_path:mother_decay_radius:v0_decay_radius:mother_costheta:v0_costheta:bch_dca:v0_dca:bchv0_dca:daus_dca:bch_charge:dau1_charge:dau2_charge:bch_quality:dau1_quality:dau2_quality:bch_nclus:dau1_nclus:dau2_nclus:vtx_r:vtx_z");
+      ntp_v0 = new TNtuple("ntp_v0","bch_v0_daus","mother_pt:bch_pt:v0_pt:dau1_pt:dau2_pt:mother_eta:bch_eta:v0_eta:dau1_eta:dau2_eta:mother_m:v0_m:mother_path:v0_path:mother_decay_radius:v0_decay_radius:mother_costheta:v0_costheta:bch_dca:v0_dca:bchv0_dca:daus_dca:bch_charge:dau1_charge:dau2_charge:bch_quality:dau1_quality:dau2_quality:bch_nclus:dau1_nclus:dau2_nclus:bch_silicon:dau1_silicon:dau2_silicon:vtx_r:vtx_z");
     }
   
   return ret;
@@ -470,6 +470,7 @@ void SecondaryVertexFinder::process_bachelor(
   double dau1_quality = dau1_tr->get_quality();
   auto   dau1_seed    = dau1_tr->get_tpc_seed();
   size_t dau1_nclus   = dau1_seed->size_cluster_keys();
+  int    dau1_silicon = hasSiliconSeed(dau1_tr) ? 1 : 0;
 
   double dau2_px      = dau2_tr->get_px();
   double dau2_py      = dau2_tr->get_py();
@@ -480,6 +481,7 @@ void SecondaryVertexFinder::process_bachelor(
   double dau2_quality = dau2_tr->get_quality();
   auto   dau2_seed    = dau2_tr->get_tpc_seed();
   size_t dau2_nclus   = dau2_seed->size_cluster_keys();
+  int    dau2_silicon = hasSiliconSeed(dau2_tr) ? 1 : 0;
 
   // Loop over bachelor tracks and check for DCA matches with the V0 track
   for(auto tr1_it = _track_map->begin(); tr1_it != _track_map->end(); ++tr1_it)
@@ -490,6 +492,9 @@ void SecondaryVertexFinder::process_bachelor(
 
     // Reverse or remove this to consider TPC-only tracks too
     if(_require_mvtx && !hasSiliconSeed(tr1)) continue;
+
+    int has_silicon_1 = 0;
+    if(hasSiliconSeed(tr1)) has_silicon_1 = 1;
 
     if(Verbosity() > 3)
     {
@@ -637,6 +642,7 @@ void SecondaryVertexFinder::process_bachelor(
       double bch_quality  = bch_tr->get_quality();
       auto   bch_seed     = bch_tr->get_tpc_seed();
       size_t bch_nclus    = bch_seed->size_cluster_keys();
+      int    bch_silicon  = has_silicon_1;
 
       double mother_pt = tsum.Pt();
       double mother_eta = tsum.Eta();
@@ -662,6 +668,7 @@ void SecondaryVertexFinder::process_bachelor(
         (float) bch_charge, (float) dau1_charge, (float) dau2_charge,
         (float) bch_quality, (float) dau1_quality, (float) dau2_quality,
         (float) bch_nclus, (float) dau1_nclus, (float) dau2_nclus,
+        (float) bch_silicon, (float) dau1_silicon, (float) dau2_silicon,
         (float) vtx_r, (float) vtx_z};
 
       ntp_v0->Fill(reco_info);
