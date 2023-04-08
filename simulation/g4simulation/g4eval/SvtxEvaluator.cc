@@ -1818,6 +1818,7 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
     TrkrClusterHitAssoc* clusterhitmap = findNode::getClass<TrkrClusterHitAssoc>(topNode, "TRKR_CLUSTERHITASSOC");
     TrkrHitSetContainer* hitsets = findNode::getClass<TrkrHitSetContainer>(topNode, "TRKR_HITSET");
     TrkrClusterIterationMapv1* _iteration_map = findNode::getClass<TrkrClusterIterationMapv1>(topNode, "CLUSTER_ITERATION_MAP");
+    ClusterErrorPara ClusErrPara;
 
     if (Verbosity() > 1){
       if (clustermap != nullptr)
@@ -1880,8 +1881,6 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 	  }else if(m_cluster_version==4){
 	    phisize = cluster->getPhiSize();
 	    zsize = cluster->getZSize();
-	    double clusRadius = r;
-	    ClusterErrorPara ClusErrPara;
 	    TrackSeed *seed = nullptr;
 	    if(track!=NULL){
 	      if(layer < 7){
@@ -1890,18 +1889,19 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 		seed = track->get_tpc_seed();
 	      }
 	      if(seed != nullptr){
-		auto para_errors = ClusErrPara.get_cluster_error(seed,cluster,clusRadius,cluster_key);
+		auto para_errors = ClusErrPara.get_cluster_error(seed,cluster,r,cluster_key);
 		pephi = sqrt(para_errors.first* Acts::UnitConstants::cm2);
 		pez =sqrt( para_errors.second* Acts::UnitConstants::cm2);
 	      }
 	    }
 	  }else if(m_cluster_version==5){
 	    TrkrClusterv5 *clusterv5 = dynamic_cast<TrkrClusterv5 *>(cluster);
+	    auto para_errors = ClusErrPara.get_clusterv5_modified_error(clusterv5,r,cluster_key);
 	    phisize = clusterv5->getPhiSize();
 	    zsize = clusterv5->getZSize();
 	    //double clusRadius = r;
-	    ez = clusterv5->getZError();
-	    ephi = clusterv5->getRPhiError();
+	    ez = sqrt(para_errors.second);
+            ephi = sqrt(para_errors.first);
 	    maxadc = clusterv5->getMaxAdc();
 	  }
 	  
@@ -2412,8 +2412,8 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
     {
       if (Verbosity() >= 1) 
 	cout << "Filling ntp_g4cluster " << endl;
-
-       PHG4TruthInfoContainer* truthinfo = findNode::getClass<PHG4TruthInfoContainer>(topNode, "G4TruthInfo");      
+      ClusterErrorPara ClusErrPara;
+      PHG4TruthInfoContainer* truthinfo = findNode::getClass<PHG4TruthInfoContainer>(topNode, "G4TruthInfo");      
       PHG4TruthInfoContainer::ConstRange range = truthinfo->GetParticleRange();
       for (PHG4TruthInfoContainer::ConstIterator iter = range.first;
            iter != range.second;
@@ -2514,11 +2514,13 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 		    phisize = reco_cluster->getPhiSize();
 		    zsize = reco_cluster->getZSize();
 		  }else if(m_cluster_version==5){
+		    TrkrClusterv5 *clusterv5 = dynamic_cast<TrkrClusterv5 *>(reco_cluster);
+		    auto para_errors = ClusErrPara.get_clusterv5_modified_error(clusterv5,r,ckey);
 		    //cout << " ver v4 " <<  endl;
 		    phisize = reco_cluster->getPhiSize();
 		    zsize = reco_cluster->getZSize();
-		    ez = reco_cluster->getZError();		  
-		    ephi = reco_cluster->getRPhiError();
+		    ez = sqrt(para_errors.second);
+		    ephi = sqrt(para_errors.first);
 		  } 
 		  
 		  adc = reco_cluster->getAdc();
