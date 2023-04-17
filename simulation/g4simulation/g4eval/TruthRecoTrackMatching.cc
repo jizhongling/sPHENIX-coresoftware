@@ -1018,7 +1018,9 @@ void TruthRecoTrackMatching::add_match_eval(unsigned short id_reco, unsigned sho
   if (particle)
   {
     track_struct.embed = m_PHG4TruthInfoContainer->isEmbeded(particle->get_primary_id());
+    if (_scan_for_embedded && !track_struct.embed) return;
     track_struct.is_primary = particle->get_parent_id() == 0;
+    if (_scan_for_primaries && !track_struct.is_primary) return;
     track_struct.pid = particle->get_pid();
     track_struct.gtrackID = particle->get_track_id();
 

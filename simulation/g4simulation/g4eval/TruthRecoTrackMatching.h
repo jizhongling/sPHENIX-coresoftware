@@ -87,7 +87,13 @@ class TruthRecoTrackMatching : public SubsysReco
     void set_max_nreco_per_truth (unsigned short val) { m_max_nreco_per_truth = val; };
     void set_max_ntruth_per_reco (unsigned short val) { m_max_ntruth_per_reco = val; };
 
+    void scan_for_embedded(bool b) { _scan_for_embedded = b; }
+    void scan_for_primaries(bool b) { _scan_for_primaries = b; }
+
   private:
+    bool _scan_for_embedded;
+    bool _scan_for_primaries;
+
   //--------------------------------------------------
   // Internal functions
   //--------------------------------------------------

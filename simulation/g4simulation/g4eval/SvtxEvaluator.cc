@@ -2620,8 +2620,8 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 
         float gtrackID = g4particle->get_track_id();
         float gflavor = g4particle->get_pid();
-        if (std::abs(gtrackID) > 1000 ||
-            (gflavor != 3334 && gflavor != 3122 && gflavor != 2212 && gflavor != -321)) continue;
+        //if (std::abs(gtrackID) > 1000 ||
+        //    (gflavor != 3334 && gflavor != 3122 && gflavor != 2212 && gflavor != -321)) continue;
 
         std::set<TrkrDefs::cluskey> g4clusters = clustereval->all_clusters_from(g4particle);
 
