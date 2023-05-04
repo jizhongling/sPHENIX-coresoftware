@@ -246,6 +246,7 @@ class TrackEvaluationContainerv1: public TrackEvaluationContainer
     int embed = 0;
     bool is_primary = false;
     int gtrackID = 0;
+    int parentID = 0;
     float truth_x = 0;
     float truth_y = 0;
     float truth_z = 0;
@@ -261,6 +262,14 @@ class TrackEvaluationContainerv1: public TrackEvaluationContainer
     float truth_p = 0;
     float truth_eta = 0;
     float truth_phi = 0;
+    //@}
+
+    //!@calorimeter information
+    //@{
+    const static int m_nCaloLayers = 6;
+    float cal_energy_3x3[m_nCaloLayers];
+    float cal_energy_5x5[m_nCaloLayers];
+    float cal_cluster_e[m_nCaloLayers];
     //@}
 
     // associate clusters

@@ -26,6 +26,7 @@ class TNtuple;
 class TTree;
 class SvtxTrack;
 class SvtxVertexMap;
+class GlobalVertexMap;
 
 //class TrkrClusterContainer;
 
@@ -86,7 +87,7 @@ class SvtxEvaluator : public SubsysReco
   SvtxEvalStack *_svtxevalstack;
 
   TMatrixF calculateClusterError(TrkrCluster* c, float& clusphi);
-  void get_dca(SvtxTrack* track, SvtxVertexMap* vertexmap,
+  void get_dca(SvtxTrack* track, GlobalVertexMap* vertexmap,
 	       float& dca3dxy, float& dca3dz,
 	       float& dca3dxysigma, float& dca3dzsigma);
   //TrkrClusterContainer *cluster_map{nullptr};

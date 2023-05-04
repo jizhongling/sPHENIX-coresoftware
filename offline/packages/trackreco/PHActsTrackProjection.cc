@@ -187,6 +187,24 @@ void PHActsTrackProjection::updateSvtxTrack(
   }
 
   svtxTrack->insert_state(&out);
+
+  double proj_phi = out.get_phi();
+  double proj_eta = out.get_eta();
+  int proj_phibin = m_towerGeomContainer->get_phibin(proj_phi);
+  int proj_etabin = m_towerGeomContainer->get_phibin(proj_eta);
+
+  double clus_key = 0, clus_dphi = 0, clus_deta = 0, clus_e = 0;
+  getClusterProperties(proj_phi, proj_eta, clus_key, clus_dphi, clus_deta, clus_e);
+  svtxTrack->set_cal_dphi(m_caloTypes.at(caloLayer), clus_dphi);
+  svtxTrack->set_cal_deta(m_caloTypes.at(caloLayer), clus_deta);
+  svtxTrack->set_cal_cluster_e(m_caloTypes.at(caloLayer), clus_e);
+  svtxTrack->set_cal_cluster_key(m_caloTypes.at(caloLayer), clus_key);
+
+  double cal_e_3x3 = 0, cal_e_5x5 = 0;
+  getSquareTowerEnergies(proj_phibin, proj_etabin, cal_e_3x3, cal_e_5x5);
+  svtxTrack->set_cal_energy_3x3(m_caloTypes.at(caloLayer), cal_e_3x3);
+  svtxTrack->set_cal_energy_5x5(m_caloTypes.at(caloLayer), cal_e_5x5);
+
   return;
 }
 

@@ -30,10 +30,13 @@
 
 #include <trackbase_historic/SvtxTrack.h>
 #include <trackbase_historic/SvtxTrackMap.h>
-#include <trackbase_historic/SvtxVertex.h>
 #include <trackbase_historic/SvtxVertexMap.h>
+#include <trackbase_historic/SvtxVertex.h>
 #include <trackbase_historic/ActsTransformations.h>
 #include <trackbase_historic/TrackSeed.h>
+
+#include <globalvertex/GlobalVertexMap.h>
+#include <globalvertex/GlobalVertex.h>
 
 #include <g4main/PHG4Hit.h>
 #include <g4main/PHG4Particle.h>
@@ -207,7 +210,7 @@ int SvtxEvaluator::Init(PHCompositeNode* /*topNode*/)
 						       "event:layer:gx:gy:gz:gt:gedep:gr:gphi:geta:gvx:gvy:gvz:gvr:gtrackID:gflavor:gembed:gprimary:gphisize:gzsize:gadc:nreco:x:y:z:r:phi:eta:ex:ey:ez:ephi:adc:phisize:zsize");
                                                        
   if (_do_gtrack_eval) _ntp_gtrack = new TNtuple("ntp_gtrack", "g4particle => best svtxtrack",
-                                                 "event:seed:gntracks:gtrackID:gflavor:gnhits:gnmaps:gnintt:gnmms:"
+                                                 "event:seed:gntracks:gtrackID:parentID:gflavor:gnhits:gnmaps:gnintt:gnmms:"
                                                  "gnintt1:gnintt2:gnintt3:gnintt4:"
                                                  "gnintt5:gnintt6:gnintt7:gnintt8:"
                                                  "gntpc:gnlmaps:gnlintt:gnltpc:gnlmms:"
@@ -218,19 +221,21 @@ int SvtxEvaluator::Init(PHCompositeNode* /*topNode*/)
                                                  "trackID:px:py:pz:pt:eta:phi:deltapt:deltaeta:deltaphi:"
                                                  "charge:quality:chisq:ndf:nhits:layers:nmaps:nintt:ntpc:nmms:ntpc1:ntpc11:ntpc2:ntpc3:nlmaps:nlintt:nltpc:nlmms:"
                                                  "vertexID:vx:vy:vz:dca2d:dca2dsigma:dca3dxy:dca3dxysigma:dca3dz:dca3dzsigma:pcax:pcay:pcaz:nfromtruth:nwrong:ntrumaps:ntruintt:ntrutpc:ntrumms:ntrutpc1:ntrutpc11:ntrutpc2:ntrutpc3:layersfromtruth:"
-                                                 "nhittpcall:nhittpcin:nhittpcmid:nhittpcout:nclusall:nclustpc:nclusintt:nclusmaps:nclusmms");
+                                                 "nhittpcall:nhittpcin:nhittpcmid:nhittpcout:nclusall:nclustpc:nclusintt:nclusmaps:nclusmms:"
+                                                 "clus_e_cemc:clus_e_hcalin:clus_e_hcalout:clus_e_outer_cemc:clus_e_outer_hcalin:clus_e_outer_hcalout");
 
   if (_do_track_eval) _ntp_track = new TNtuple("ntp_track", "svtxtrack => max truth",
                                                "event:seed:trackID:crossing:px:py:pz:pt:eta:phi:deltapt:deltaeta:deltaphi:charge:"
                                                "quality:chisq:ndf:nhits:nmaps:nintt:ntpc:nmms:ntpc1:ntpc11:ntpc2:ntpc3:nlmaps:nlintt:nltpc:nlmms:layers:"
                                                "vertexID:vx:vy:vz:dca2d:dca2dsigma:dca3dxy:dca3dxysigma:dca3dz:dca3dzsigma:pcax:pcay:pcaz:"
-					       "gtrackID:gflavor:gnhits:gnmaps:gnintt:gntpc:gnmms:gnlmaps:gnlintt:gnltpc:gnlmms:"
+					       "gtrackID:parentID:gflavor:gnhits:gnmaps:gnintt:gntpc:gnmms:gnlmaps:gnlintt:gnltpc:gnlmms:"
                                                "gpx:gpy:gpz:gpt:geta:gphi:"
                                                "gvx:gvy:gvz:gvt:"
                                                "gfpx:gfpy:gfpz:gfx:gfy:gfz:"
                                                "gembed:gprimary:nfromtruth:nwrong:ntrumaps:ntruintt:"
 					       "ntrutpc:ntrumms:ntrutpc1:ntrutpc11:ntrutpc2:ntrutpc3:layersfromtruth:"
-                                               "nhittpcall:nhittpcin:nhittpcmid:nhittpcout:nclusall:nclustpc:nclusintt:nclusmaps:nclusmms");
+                                               "nhittpcall:nhittpcin:nhittpcmid:nhittpcout:nclusall:nclustpc:nclusintt:nclusmaps:nclusmms:"
+                                               "clus_e_cemc:clus_e_hcalin:clus_e_hcalout:clus_e_outer_cemc:clus_e_outer_hcalin:clus_e_outer_hcalout");
 
   if (_do_gseed_eval) _ntp_gseed = new TNtuple("ntp_gseed", "seeds from truth",
                                                "event:seed:ntrk:gx:gy:gz:gr:geta:gphi:"
@@ -1006,6 +1011,7 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
       _timer->restart();
     }
 
+    GlobalVertexMap* gvertexmap =  findNode::getClass<GlobalVertexMap>(topNode, "GlobalVertexMap");
     SvtxVertexMap* vertexmap = nullptr;
     if(_use_initial_vertex)
       vertexmap = findNode::getClass<SvtxVertexMap>(topNode, "SvtxVertexMap");
@@ -1016,7 +1022,7 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 
     PHG4TruthInfoContainer* truthinfo = findNode::getClass<PHG4TruthInfoContainer>(topNode, "G4TruthInfo");
 
-    if (vertexmap && truthinfo)
+    if (gvertexmap && vertexmap && truthinfo)
     {
       const auto prange = truthinfo->GetPrimaryParticleRange();
       map<int, unsigned int> embedvtxid_particle_count;
@@ -1118,11 +1124,19 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
         ++ngembed;
       }
 
-      for (SvtxVertexMap::Iter iter = vertexmap->begin();
-           iter != vertexmap->end();
+      for (auto iter = gvertexmap->begin();
+           iter != gvertexmap->end();
            ++iter)
        {
-        SvtxVertex* vertex = iter->second;
+        GlobalVertex* gvertex = iter->second;
+	auto svtxv = gvertex->find_vtxids(GlobalVertex::SVTX);
+	// check that it contains a track vertex
+	if(svtxv == gvertex->end_vtxids())
+	  { continue; }
+	
+	auto svtxvertexid = svtxv->second;
+	auto vertex = vertexmap->find(svtxvertexid)->second;
+
         PHG4VtxPoint* point = vertexeval->max_truth_point_by_ntracks(vertex);
         int vertexID = vertex->get_id();
         float vx = vertex->get_x();
@@ -2595,7 +2609,8 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
     }
 
     PHG4TruthInfoContainer* truthinfo = findNode::getClass<PHG4TruthInfoContainer>(topNode, "G4TruthInfo");
-    SvtxVertexMap *vertexmap = findNode::getClass<SvtxVertexMap>(topNode, "SvtxVertexMap");
+    GlobalVertexMap *gvertexmap = findNode::getClass<GlobalVertexMap>(topNode, "GlobalVertexMap");
+
 
     if (truthinfo)
     {
@@ -2619,7 +2634,10 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
         }
 
         float gtrackID = g4particle->get_track_id();
+        float parentID = g4particle->get_parent_id();
         float gflavor = g4particle->get_pid();
+
+        if (gtrackID < -10) continue;
         //if (std::abs(gtrackID) > 1000 ||
         //    (gflavor != 3334 && gflavor != 3122 && gflavor != 2212 && gflavor != -321)) continue;
 
@@ -2830,6 +2848,13 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
         float ntrutpc3 = NAN;
         float layersfromtruth = NAN;
         
+        float clus_e_cemc = NAN;
+        float clus_e_hcalin = NAN;
+        float clus_e_hcalout = NAN;
+        float clus_e_outer_cemc = NAN;
+        float clus_e_outer_hcalin = NAN;
+        float clus_e_outer_hcalout = NAN;
+
         if (_do_track_match)
         {
           SvtxTrack* track = trackeval->best_track_from(g4particle);
@@ -2995,14 +3020,16 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 		 << endl;
 	    */
 	    
+	    // this is the global vertex id
             vertexID = track->get_vertex_id();
-            SvtxVertex* vertex = vertexmap->get(vertexID);
+	    
+            GlobalVertex* vertex = gvertexmap->get(vertexID);
 	    if(vertex) {
 	      vx = vertex->get_x();
 	      vy = vertex->get_y();
 	      vz = vertex->get_z();
 	      
-	      get_dca(track, vertexmap, dca3dxy, dca3dz, dca3dxysigma, dca3dzsigma);
+	      get_dca(track, gvertexmap, dca3dxy, dca3dz, dca3dxysigma, dca3dzsigma);
 	    }
 	    
             px = track->get_px();
@@ -3059,12 +3086,20 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
             ntrutpc3 = trackeval->get_layer_range_contribution(track, g4particle, _nlayers_maps + _nlayers_intt+32, _nlayers_maps + _nlayers_intt + _nlayers_tpc);
 
             layersfromtruth = trackeval->get_nclusters_contribution_by_layer(track, g4particle);
+
+            clus_e_cemc = track->get_cal_cluster_e(SvtxTrack::CEMC);
+            clus_e_hcalin = track->get_cal_cluster_e(SvtxTrack::HCALIN);
+            clus_e_hcalout = track->get_cal_cluster_e(SvtxTrack::HCALOUT);
+            clus_e_outer_cemc = track->get_cal_cluster_e(SvtxTrack::OUTER_CEMC);
+            clus_e_outer_hcalin = track->get_cal_cluster_e(SvtxTrack::OUTER_HCALIN);
+            clus_e_outer_hcalout = track->get_cal_cluster_e(SvtxTrack::OUTER_HCALOUT);
           }
         }
 
 	float gtrack_data[] = {(float) _ievent,m_fSeed,
                                gntracks,
                                gtrackID,
+                               parentID,
                                gflavor,
 			       ng4hits,
                                (float) ngmaps,
@@ -3156,7 +3191,8 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
                                nhit_tpc_all,
                                nhit_tpc_in,
                                nhit_tpc_mid,
-                               nhit_tpc_out, nclus_all, nclus_tpc, nclus_intt, nclus_maps, nclus_mms};
+                               nhit_tpc_out, nclus_all, nclus_tpc, nclus_intt, nclus_maps, nclus_mms,
+                               clus_e_cemc, clus_e_hcalin, clus_e_hcalout, clus_e_outer_cemc, clus_e_outer_hcalin, clus_e_outer_hcalout};
 
         /*
 	cout << " ievent " << _ievent
@@ -3192,7 +3228,8 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 
     // need things off of the DST...
     SvtxTrackMap* trackmap = findNode::getClass<SvtxTrackMap>(topNode, _trackmapname.c_str());
-    SvtxVertexMap *vertexmap = findNode::getClass<SvtxVertexMap>(topNode, "SvtxVertexMap");
+ 
+    GlobalVertexMap *gvertexmap = findNode::getClass<GlobalVertexMap>(topNode, "GlobalVertexMap");
 
     if (trackmap)
     {
@@ -3360,8 +3397,9 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 	  dca3dxysigma = NAN, dca3dzsigma = NAN;
 	float dca2d = NAN, dca2dsigma = NAN;
 
+	/// this is the global vertex
         int vertexID = track->get_vertex_id();
-        SvtxVertex* vertex = vertexmap->get(vertexID);
+        GlobalVertex* vertex = gvertexmap->get(vertexID);
 	float vx = NAN;
 	float vy = NAN;
 	float vz = NAN;
@@ -3370,7 +3408,7 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 	  vy = vertex->get_y();
 	  vz = vertex->get_z();
 	  
-	  get_dca(track, vertexmap, dca3dxy, dca3dz,
+	  get_dca(track, gvertexmap, dca3dxy, dca3dz,
 		  dca3dxysigma, dca3dzsigma);
 	}
         float px = track->get_px();
@@ -3394,6 +3432,7 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
         float pcaz = track->get_z();
 
 	float gtrackID = NAN;
+        float parentID = NAN;
         float gflavor = NAN;
         float ng4hits = NAN;
         unsigned int ngmaps = 0;
@@ -3446,6 +3485,7 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
             }
 
             gtrackID = g4particle->get_track_id();
+            parentID = g4particle->get_parent_id();
             gflavor = g4particle->get_pid();
 
             std::set<TrkrDefs::cluskey> g4clusters = clustereval->all_clusters_from(g4particle);
@@ -3567,6 +3607,13 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
           }
         }
 
+        float clus_e_cemc = track->get_cal_cluster_e(SvtxTrack::CEMC);
+        float clus_e_hcalin = track->get_cal_cluster_e(SvtxTrack::HCALIN);
+        float clus_e_hcalout = track->get_cal_cluster_e(SvtxTrack::HCALOUT);
+        float clus_e_outer_cemc = track->get_cal_cluster_e(SvtxTrack::OUTER_CEMC);
+        float clus_e_outer_hcalin = track->get_cal_cluster_e(SvtxTrack::OUTER_HCALIN);
+        float clus_e_outer_hcalout = track->get_cal_cluster_e(SvtxTrack::OUTER_HCALOUT);
+
         float track_data[] = {(float) _ievent,m_fSeed,
                               trackID,
 			      crossing,
@@ -3601,6 +3648,7 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
                               pcay,
                               pcaz,
 			      gtrackID,
+                              parentID,
                               gflavor,
                               ng4hits,
                               (float) ngmaps,
@@ -3643,7 +3691,8 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
                               nhit_tpc_all,
                               nhit_tpc_in,
                               nhit_tpc_mid,
-                              nhit_tpc_out, nclus_all, nclus_tpc, nclus_intt, nclus_maps, nclus_mms};
+                              nhit_tpc_out, nclus_all, nclus_tpc, nclus_intt, nclus_maps, nclus_mms,
+                              clus_e_cemc, clus_e_hcalin, clus_e_hcalout, clus_e_outer_cemc, clus_e_outer_hcalin, clus_e_outer_hcalout};
 
 	if(Verbosity() >= 1)
 	  cout << "ievent " << _ievent
@@ -3871,7 +3920,7 @@ TMatrixF SvtxEvaluator::calculateClusterError(TrkrCluster* c, float& clusphi)
 }
     
 
-void SvtxEvaluator::get_dca(SvtxTrack* track, SvtxVertexMap* vertexmap,
+void SvtxEvaluator::get_dca(SvtxTrack* track, GlobalVertexMap* vertexmap,
 			    float& dca3dxy, float& dca3dz,
 			    float& dca3dxysigma, float& dca3dzsigma)
 {

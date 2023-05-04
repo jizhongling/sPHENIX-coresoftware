@@ -129,6 +129,30 @@ class SvtxTrack_v4: public SvtxTrack
   StateIter find_state(float pathlength) override { return _states.find(pathlength); }
   StateIter end_states() override { return _states.end(); }
  
+  //
+  // calo projection methods ---------------------------------------------------
+  //
+  float get_cal_dphi(CAL_LAYER layer) const override;
+  void set_cal_dphi(CAL_LAYER layer, float dphi) override { _cal_dphi[layer] = dphi; }
+
+  float get_cal_deta(CAL_LAYER layer) const override;
+  void set_cal_deta(CAL_LAYER layer, float deta) override { _cal_deta[layer] = deta; }
+
+  float get_cal_energy_3x3(CAL_LAYER layer) const override;
+  void set_cal_energy_3x3(CAL_LAYER layer, float energy_3x3) override { _cal_energy_3x3[layer] = energy_3x3; }
+
+  float get_cal_energy_5x5(CAL_LAYER layer) const override;
+  void set_cal_energy_5x5(CAL_LAYER layer, float energy_5x5) override { _cal_energy_5x5[layer] = energy_5x5; }
+
+  unsigned int get_cal_cluster_id(CAL_LAYER layer) const override;
+  void set_cal_cluster_id(CAL_LAYER layer, unsigned int id) override { _cal_cluster_id[layer] = id; }
+
+  TrkrDefs::cluskey get_cal_cluster_key(CAL_LAYER layer) const override;
+  void set_cal_cluster_key(CAL_LAYER layer, TrkrDefs::cluskey id) override { _cal_cluster_key[layer] = id; }
+
+  float get_cal_cluster_e(CAL_LAYER layer) const override;
+  void set_cal_cluster_e(CAL_LAYER layer, float e) override { _cal_cluster_e[layer] = e; }
+
  private:
 
   // track information
@@ -143,6 +167,15 @@ class SvtxTrack_v4: public SvtxTrack
 
   // track state information
   StateMap _states;  //< path length => state object
+
+  // calorimeter matches
+  std::map<CAL_LAYER, float> _cal_dphi;
+  std::map<CAL_LAYER, float> _cal_deta;
+  std::map<CAL_LAYER, float> _cal_energy_3x3;
+  std::map<CAL_LAYER, float> _cal_energy_5x5;
+  std::map<CAL_LAYER, int> _cal_cluster_id;
+  std::map<CAL_LAYER, TrkrDefs::cluskey> _cal_cluster_key;
+  std::map<CAL_LAYER, float> _cal_cluster_e;
 
   ClassDefOverride(SvtxTrack_v4, 4)
 };

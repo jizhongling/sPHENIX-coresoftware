@@ -147,4 +147,51 @@ size_t SvtxTrack_v4::erase_state(float pathlength)
   return _states.size();
 }
 
+float SvtxTrack_v4::get_cal_dphi(SvtxTrack::CAL_LAYER layer) const
+{
+  std::map<SvtxTrack::CAL_LAYER, float>::const_iterator citer = _cal_dphi.find(layer);
+  if (citer == _cal_dphi.end()) return NAN;
+  return citer->second;
+}
 
+float SvtxTrack_v4::get_cal_deta(SvtxTrack::CAL_LAYER layer) const
+{
+  std::map<SvtxTrack::CAL_LAYER, float>::const_iterator citer = _cal_deta.find(layer);
+  if (citer == _cal_deta.end()) return NAN;
+  return citer->second;
+}
+
+float SvtxTrack_v4::get_cal_energy_3x3(SvtxTrack::CAL_LAYER layer) const
+{
+  std::map<SvtxTrack::CAL_LAYER, float>::const_iterator citer = _cal_energy_3x3.find(layer);
+  if (citer == _cal_energy_3x3.end()) return NAN;
+  return citer->second;
+}
+
+float SvtxTrack_v4::get_cal_energy_5x5(SvtxTrack::CAL_LAYER layer) const
+{
+  std::map<SvtxTrack::CAL_LAYER, float>::const_iterator citer = _cal_energy_5x5.find(layer);
+  if (citer == _cal_energy_5x5.end()) return NAN;
+  return citer->second;
+}
+
+unsigned int SvtxTrack_v4::get_cal_cluster_id(SvtxTrack::CAL_LAYER layer) const
+{
+  std::map<SvtxTrack::CAL_LAYER, int>::const_iterator citer = _cal_cluster_id.find(layer);
+  if (citer == _cal_cluster_id.end()) return UINT_MAX;
+  return citer->second;
+}
+
+TrkrDefs::cluskey SvtxTrack_v4::get_cal_cluster_key(SvtxTrack::CAL_LAYER layer) const
+{
+  std::map<SvtxTrack::CAL_LAYER, TrkrDefs::cluskey>::const_iterator citer = _cal_cluster_key.find(layer);
+  if (citer == _cal_cluster_key.end()) return UINT_MAX;
+  return citer->second;
+}
+
+float SvtxTrack_v4::get_cal_cluster_e(SvtxTrack::CAL_LAYER layer) const
+{
+  std::map<SvtxTrack::CAL_LAYER, float>::const_iterator citer = _cal_cluster_e.find(layer);
+  if (citer == _cal_cluster_e.end()) return NAN;
+  return citer->second;
+}
