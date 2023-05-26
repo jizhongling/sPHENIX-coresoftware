@@ -25,6 +25,7 @@ AM_LDFLAGS = \
 pkginclude_HEADERS = \
   TrainingHitsContainer.h \
   TrainingHits.h \
+  TpcRawDataTree.h \
   TpcClusterCleaner.h \
   TpcClusterizer.h \
   TpcClusterMover.h \
@@ -32,6 +33,8 @@ pkginclude_HEADERS = \
   TpcDistortionCorrection.h \
   TpcDistortionCorrectionContainer.h \
   TpcLoadDistortionCorrection.h \
+  TpcMap.h \
+  TpcRawDataDecoder.h \
   TpcRawWriter.h \
   TpcSimpleClusterizer.h
 
@@ -46,9 +49,12 @@ nobase_dist_pcm_DATA = \
 
 # sources for tpc library
 libtpc_la_SOURCES = \
+  TpcRawDataTree.cc \
   TpcClusterCleaner.cc \
   TpcClusterizer.cc \
   TpcLoadDistortionCorrection.cc \
+  TpcMap.cc \
+  TpcRawDataDecoder.cc \
   TpcRawWriter.cc \
   TpcSimpleClusterizer.cc
 
