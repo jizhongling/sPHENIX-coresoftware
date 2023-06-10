@@ -105,6 +105,8 @@ class SvtxEvaluator : public SubsysReco
   bool _do_gpoint_eval = true;
   bool _do_g4hit_eval = true;
   bool _do_hit_eval = true;
+  bool _do_training_eval = true;
+  bool _do_trackeval_eval = true;
   bool _do_cluster_eval = true;
   bool _do_g4cluster_eval = true;
   bool _do_gtrack_eval = true;

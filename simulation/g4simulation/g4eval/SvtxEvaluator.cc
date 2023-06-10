@@ -1885,7 +1885,7 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
   {
     if (Verbosity() >= 1)
     {
-      cout << "Filling t_training " << endl;
+      std::cout << "Filling t_training" << std::endl;
       _timer->restart();
     }
     // need things off of the DST...
@@ -1905,14 +1905,14 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
         training_z = hits.z;
         training_phistep = hits.phistep;
         training_zstep = hits.zstep;
-        copy(hits.v_adc.cbegin(), hits.v_adc.cend(), training_adc.begin());
+        std::copy(hits.v_adc.cbegin(), hits.v_adc.cend(), training_adc.begin());
         _t_training->Fill();
       }
     }
     if (Verbosity() >= 1)
     {
       _timer->stop();
-      cout << "hit time:                " << _timer->get_accumulated_time() / 1000. << " sec" << endl;
+      std::cout << "hit time:                " << _timer->get_accumulated_time() / 1000. << " sec" << std::endl;
     }
   }
 
@@ -4082,9 +4082,9 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 
   if (_t_trackeval)
   {
-    auto trackeval = findNode::getClass<TrackEvaluationContainerv1>(topNode, "TrackMatchEvalContainer");
-    if (trackeval)
-      v_tracks = trackeval->tracks();
+    auto trkeval = findNode::getClass<TrackEvaluationContainerv1>(topNode, "TrackMatchEvalContainer");
+    if (trkeval)
+      v_tracks = trkeval->tracks();
     _t_trackeval->Fill();
   }
 

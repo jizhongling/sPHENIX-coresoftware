@@ -128,6 +128,7 @@ class TruthRecoTrackMatching : public SubsysReco
 
   // Output data node:
   EmbRecoMatchContainer* m_EmbRecoMatchContainer = nullptr;
+  TrackEvaluationContainerv1 *m_TrackEvalContainer = nullptr;
 
   //--------------------------------------------------
   //    RECO data for a "table" of reconstructed tracks

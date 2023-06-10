@@ -512,8 +512,8 @@ namespace G4Eval
               matchesB[B - iB0] = true;
               match_stat += comp_val.second;
               ++n_match;
-              if (mBA.count(_B->second) == 0)
-                mBA.insert({_B->second, _A->second});
+              if (mBA.count(B->second) == 0)
+                mBA.insert({B->second, A->second});
             }
           }
         }

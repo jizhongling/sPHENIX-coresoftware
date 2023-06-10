@@ -6,6 +6,8 @@
 #include <g4detectors/PHG4TpcCylinderGeomContainer.h>
 
 #include <g4main/PHG4TruthInfoContainer.h>
+#include <g4main/PHG4Particle.h>
+#include <g4main/PHG4VtxPoint.h>
 
 #include <g4tracking/EmbRecoMatch.h>
 #include <g4tracking/EmbRecoMatchContainer.h>
@@ -18,6 +20,7 @@
 #include <trackbase/TrkrCluster.h>
 #include <trackbase/TrkrClusterContainer.h>
 #include <trackbase/TrkrDefs.h>
+#include <trackbase/TrackFitUtils.h>
 
 #include <trackbase_historic/SvtxTrack.h>
 #include <trackbase_historic/SvtxTrackMap.h>
@@ -570,7 +573,7 @@ void TruthRecoTrackMatching::match_tracks_in_box(
 
   std::sort(box_pairs.begin(), box_pairs.end());  // sorted by first index_true, then id_reco
   std::vector<PossibleMatch> poss_matches;
-  vector<std::map<TrkrDefs::cluskey,TrkrDefs::cluskey>> v_clusmap; // key_reco, key_true
+  std::vector<std::map<TrkrDefs::cluskey,TrkrDefs::cluskey>> v_clusmap; // key_reco, key_true
   unsigned short index_clusmap = 0;
 
   auto ipair = box_pairs.begin();  // save current examined pair for sorting/unsorting purposes
