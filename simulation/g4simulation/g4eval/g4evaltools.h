@@ -4,6 +4,7 @@
 #include <trackbase/TrkrDefs.h>
 
 #include <fun4all/Fun4AllReturnCodes.h>
+
 #include <Eigen/Core>
 
 #include <array>
