@@ -214,7 +214,7 @@ int SvtxEvaluator::Init(PHCompositeNode* /*topNode*/)
                              "siqr:siphi:sithe:six0:siy0:tpqr:tpphi:tpthe:tpx0:tpy0:"
 			     "charge:quality:chisq:ndf:nhits:nmaps:nintt:ntpc:nmms:ntpc1:ntpc11:ntpc2:ntpc3:nlmaps:nlintt:nltpc:nlmms:layers:"
                              "vertexID:vx:vy:vz:dca2d:dca2dsigma:dca3dxy:dca3dxysigma:dca3dz:dca3dzsigma:pcax:pcay:pcaz:"
-                             "gtrackID:gflavor:gnhits:gnmaps:gnintt:gntpc:gnmms:gnlmaps:gnlintt:gnltpc:gnlmms:"
+                             "gtrackID:singlematch:gflavor:gnhits:gnmaps:gnintt:gntpc:gnmms:gnlmaps:gnlintt:gnltpc:gnlmms:"
                              "gpx:gpy:gpz:gpt:geta:gphi:"
                              "gvx:gvy:gvz:gvt:"
                              "gfpx:gfpy:gfpz:gfx:gfy:gfz:"
@@ -3943,6 +3943,7 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
         float gembed = NAN;
         float gprimary = NAN;
 
+	int ispure = 0;
         float nfromtruth = NAN;
         float nwrong = NAN;
         float ntrumaps = NAN;
@@ -3975,7 +3976,14 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
                 continue;
               }
             }
-
+	    SvtxTrack* truthrecotrk = trackeval->best_track_from(g4particle);
+	    if(truthrecotrk)
+	      {
+		if(truthrecotrk->get_id() == track->get_id())
+		  {
+		    ispure = 1;
+		  }
+	      }
             gtrackID = g4particle->get_track_id();
             parentID = g4particle->get_parent_id();
             gflavor = g4particle->get_pid();
@@ -4216,6 +4224,7 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
                               pcaz,
                               gtrackID,
                               parentID,
+			      (float)ispure,
                               gflavor,
                               ng4hits,
                               (float) ngmaps,
