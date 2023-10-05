@@ -83,7 +83,7 @@ namespace
   // Neural network parameters and modules
   bool use_nn = false;
   const int nd = 5;
-  torch::jit::script::Module module_pos;
+  torch::jit::script::Module *module_pos = nullptr;
 
   struct thread_data 
   {
@@ -529,7 +529,7 @@ namespace
                 }, 1));
 
           // Execute the model and turn its output into a tensor
-          at::Tensor ten_pos = module_pos.forward(inputs).toTensor();
+          at::Tensor ten_pos = module_pos->forward(inputs).toTensor();
           float nn_phi = training_hits->phi + std::clamp(ten_pos[0][0][0].item<float>(), -(float)nd, (float)nd) * training_hits->phistep;
           float nn_z = training_hits->z + std::clamp(ten_pos[0][1][0].item<float>(), -(float)nd, (float)nd) * training_hits->zstep;
           float nn_x = radius * cos(nn_phi);
@@ -881,7 +881,8 @@ int TpcClusterizer::InitRun(PHCompositeNode *topNode)
     try
     {
       // Deserialize the ScriptModule from a file using torch::jit::load()
-      module_pos = torch::jit::load(net_model);
+      torch::jit::script::Module module_tmp = torch::jit::load(net_model);
+      module_pos = new torch::jit::script::Module(module_tmp);
       std::cout << PHWHERE << "Load NN module: " << net_model << std::endl;
     }
     catch(const c10::Error &e)

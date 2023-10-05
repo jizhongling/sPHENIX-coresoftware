@@ -76,7 +76,7 @@ class TpcClusterizer : public SubsysReco
   TrkrClusterContainer *m_clusterlist = nullptr;
   TrkrClusterHitAssoc *m_clusterhitassoc = nullptr;
   ActsGeometry *m_tGeometry = nullptr;
-  bool _use_nn = true;
+  bool _use_nn = false;
   bool do_hit_assoc = true;
   bool do_wedge_emulation = false;
   bool do_sequential = false;
