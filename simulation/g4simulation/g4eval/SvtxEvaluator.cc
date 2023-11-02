@@ -185,13 +185,13 @@ int SvtxEvaluator::Init(PHCompositeNode* /*topNode*/)
   if (_do_g4cluster_eval)
   {
     _ntp_g4cluster = new TNtuple("ntp_g4cluster", "g4cluster => max truth",
-                                 "event:layer:gx:gy:gz:gt:gedep:gr:gphi:geta:gtrackID:gflavor:gembed:gprimary:gphisize:gzsize:gadc:nreco:x:y:z:r:phi:eta:ex:ey:ez:ephi:adc:phisize:zsize");
+                                 "event:layer:gx:gy:gz:gt:gedep:gr:gphi:geta:gvx:gvy:gvz:gvr:gtrackID:gflavor:gembed:gprimary:gphisize:gzsize:gadc:nreco:x:y:z:r:phi:eta:ex:ey:ez:ephi:adc:phisize:zsize");
   }
 
   if (_do_gtrack_eval)
   {
     _ntp_gtrack = new TNtuple("ntp_gtrack", "g4particle => best svtxtrack",
-                              "event:seed:gntracks:gnchghad:gtrackID:gflavor:gnhits:gnmaps:gnintt:gnmms:"
+                              "event:seed:gntracks:gnchghad:gtrackID:gflavor:gparentPID:gnhits:gnmaps:gnintt:gnmms:"
                               "gnintt1:gnintt2:gnintt3:gnintt4:"
                               "gnintt5:gnintt6:gnintt7:gnintt8:"
                               "gntpc:gnlmaps:gnlintt:gnltpc:gnlmms:"
@@ -204,7 +204,8 @@ int SvtxEvaluator::Init(PHCompositeNode* /*topNode*/)
                               "charge:quality:chisq:ndf:nhits:layers:nmaps:nintt:ntpc:nmms:ntpc1:ntpc11:ntpc2:ntpc3:nlmaps:nlintt:nltpc:nlmms:"
                               "vertexID:vx:vy:vz:dca2d:dca2dsigma:dca3dxy:dca3dxysigma:dca3dz:dca3dzsigma:pcax:pcay:pcaz:nfromtruth:nwrong:ntrumaps:nwrongmaps:ntruintt:nwrongintt:ntrutpc:nwrongtpc:ntrumms:nwrongmms:ntrutpc1:nwrongtpc1:ntrutpc11:nwrongtpc11:ntrutpc2:nwrongtpc2:ntrutpc3:nwrongtpc3:layersfromtruth:"
 			      "npedge:nredge:nbig:novlp:merr:msize:"
-                              "nhittpcall:nhittpcin:nhittpcmid:nhittpcout:nclusall:nclustpc:nclusintt:nclusmaps:nclusmms");
+                              "nhittpcall:nhittpcin:nhittpcmid:nhittpcout:nclusall:nclustpc:nclusintt:nclusmaps:nclusmms:"
+                              "clus_e_cemc:clus_e_hcalin:clus_e_hcalout:clus_e_outer_cemc:clus_e_outer_hcalin:clus_e_outer_hcalout");
   }
 
   if (_do_track_eval)
@@ -214,14 +215,15 @@ int SvtxEvaluator::Init(PHCompositeNode* /*topNode*/)
                              "siqr:siphi:sithe:six0:siy0:tpqr:tpphi:tpthe:tpx0:tpy0:"
 			     "charge:quality:chisq:ndf:nhits:nmaps:nintt:ntpc:nmms:ntpc1:ntpc11:ntpc2:ntpc3:nlmaps:nlintt:nltpc:nlmms:layers:"
                              "vertexID:vx:vy:vz:dca2d:dca2dsigma:dca3dxy:dca3dxysigma:dca3dz:dca3dzsigma:pcax:pcay:pcaz:"
-                             "gtrackID:singlematch:gflavor:gnhits:gnmaps:gnintt:gntpc:gnmms:gnlmaps:gnlintt:gnltpc:gnlmms:"
+                             "gtrackID:singlematch:gflavor:gparentPID:gnhits:gnmaps:gnintt:gntpc:gnmms:gnlmaps:gnlintt:gnltpc:gnlmms:"
                              "gpx:gpy:gpz:gpt:geta:gphi:"
                              "gvx:gvy:gvz:gvt:"
                              "gfpx:gfpy:gfpz:gfx:gfy:gfz:"
                              "gembed:gprimary:nfromtruth:nwrong:ntrumaps:nwrongmaps:ntruintt:nwrongintt:"
                              "ntrutpc:nwrongtpc:ntrumms:nwrongmms:ntrutpc1:nwrongtpc1:ntrutpc11:nwrongtpc11:ntrutpc2:nwrongtpc2:ntrutpc3:nwrongtpc3:layersfromtruth:"
 			     "npedge:nredge:nbig:novlp:merr:msize:"
-                             "nhittpcall:nhittpcin:nhittpcmid:nhittpcout:nclusall:nclustpc:nclusintt:nclusmaps:nclusmms");
+                             "nhittpcall:nhittpcin:nhittpcmid:nhittpcout:nclusall:nclustpc:nclusintt:nclusmaps:nclusmms:"
+                             "clus_e_cemc:clus_e_hcalin:clus_e_hcalout:clus_e_outer_cemc:clus_e_outer_hcalin:clus_e_outer_hcalout");
   }
 
   if (_do_gseed_eval)
@@ -2793,10 +2795,13 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
         }
 
         float gtrackID = g4particle->get_track_id();
-        float parentID = g4particle->get_parent_id();
         float gflavor = g4particle->get_pid();
+        float gparentPID = NAN;
+        PHG4Particle *primary_particle = trutheval->get_primary_particle(g4particle);
+        if (primary_particle)
+          gparentPID = primary_particle->get_pid();
 
-        if (gtrackID < -10) continue;
+        //if (gtrackID < -10) continue;
         //if (std::abs(gtrackID) > 1000 ||
         //    (gflavor != 3334 && gflavor != 3122 && gflavor != 2212 && gflavor != -321)) continue;
 
@@ -3432,8 +3437,8 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
                                gntracks,
 			       gnchghad,
                                gtrackID,
-                               parentID,
                                gflavor,
+                               gparentPID,
                                ng4hits,
                                (float) ngmaps,
                                (float) ngintt,
@@ -3913,8 +3918,8 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
         float pcaz = track->get_z();
 
         float gtrackID = NAN;
-        float parentID = NAN;
         float gflavor = NAN;
+        float gparentPID = NAN;
         float ng4hits = NAN;
         unsigned int ngmaps = 0;
         unsigned int ngintt = 0;
@@ -3985,8 +3990,10 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 		  }
 	      }
             gtrackID = g4particle->get_track_id();
-            parentID = g4particle->get_parent_id();
             gflavor = g4particle->get_pid();
+            PHG4Particle *primary_particle = trutheval->get_primary_particle(g4particle);
+            if (primary_particle)
+              gparentPID = primary_particle->get_pid();
 
             std::set<TrkrDefs::cluskey> g4clusters = clustereval->all_clusters_from(g4particle);
             ng4hits = g4clusters.size();
@@ -4223,9 +4230,9 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
                               pcay,
                               pcaz,
                               gtrackID,
-                              parentID,
 			      (float)ispure,
                               gflavor,
+                              gparentPID,
                               ng4hits,
                               (float) ngmaps,
                               (float) ngintt,

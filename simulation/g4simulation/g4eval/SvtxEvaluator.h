@@ -134,7 +134,7 @@ class SvtxEvaluator : public SubsysReco
   TNtuple *_ntp_track = nullptr;
   TNtuple *_ntp_gseed = nullptr;
 
-  TTree *_t_training;
+  TTree *_t_training = nullptr;
   Short_t training_event;
   TrkrDefs::cluskey training_cluskey;
   Short_t training_layer;
@@ -147,7 +147,7 @@ class SvtxEvaluator : public SubsysReco
   Float_t training_zstep;
   std::array<Short_t, 11*11> training_adc;
 
-  TTree *_t_trackeval;
+  TTree *_t_trackeval = nullptr;
   TrackEvaluationContainerv1::TrackStruct::List v_tracks;
 
   // evaluator output file
