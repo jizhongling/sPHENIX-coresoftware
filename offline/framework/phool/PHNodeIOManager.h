@@ -39,8 +39,9 @@ class PHNodeIOManager : public PHIOManager
   void selectObjectToRead(const std::string &objectName, bool readit);
   bool isSelected(const std::string &objectName);
   int isFunctional() const { return isFunctionalFlag; }
-  bool SetCompressionLevel(const int level);
-  double GetBytesWritten();
+  bool SetCompressionSetting(const int level);
+  uint64_t GetBytesWritten();
+  uint64_t GetFileSize();
   std::map<std::string, TBranch *> *GetBranchMap();
 
   bool write(TObject **, const std::string &, int buffersize, int splitlevel);
@@ -52,15 +53,15 @@ class PHNodeIOManager : public PHIOManager
   bool readEventFromFile(size_t requestedEvent);
   std::string getBranchClassName(TBranch *);
 
-  TFile *file = nullptr;
-  TTree *tree = nullptr;
-  std::string TreeName = "T";
-  int accessMode = PHReadOnly;
-  int CompressionLevel = 3;
+  TFile *file {nullptr};
+  TTree *tree {nullptr};
+  std::string TreeName {"T"};
+  int accessMode {PHReadOnly};
+  int m_CompressionSetting {505}; // ZSTD
+  int isFunctionalFlag {0};  // flag to tell if that object initialized properly
   std::map<std::string, TBranch *> fBranches;
   std::map<std::string, bool> objectToRead;
 
-  int isFunctionalFlag = 0;  // flag to tell if that object initialized properly
 };
 
 #endif

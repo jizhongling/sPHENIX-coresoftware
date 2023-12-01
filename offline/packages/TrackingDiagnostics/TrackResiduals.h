@@ -33,10 +33,10 @@ class TrackResiduals : public SubsysReco
   int InitRun(PHCompositeNode *topNode) override;
   int process_event(PHCompositeNode *topNode) override;
   int End(PHCompositeNode *topNode) override;
-  void outfileName(std::string &name) { m_outfileName = name; }
+  void outfileName(const std::string &name) { m_outfileName = name; }
   void alignment(bool align) { m_doAlignment = align; }
-  void alignmentmapName(std::string name) { m_alignmentMapName = name; }
-  void trackmapName(std::string name) { m_trackMapName = name; }
+  void alignmentmapName(const std::string &name) { m_alignmentMapName = name; }
+  void trackmapName(const std::string &name) { m_trackMapName = name; }
 
  private:
   void clearClusterStateVectors();
@@ -97,6 +97,7 @@ class TrackResiduals : public SubsysReco
   std::vector<int> m_clusedge;
   std::vector<int> m_clusoverlap;
   std::vector<uint32_t> m_clushitsetkey;
+  std::vector<uint64_t> m_cluskeys;
   std::vector<float> m_idealsurfcenterx;
   std::vector<float> m_idealsurfcentery;
   std::vector<float> m_idealsurfcenterz;

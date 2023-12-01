@@ -99,8 +99,8 @@ class PHActsTrkFitter : public SubsysReco
     m_actsEvaluator = actsEvaluator;
   }
 
-  void setEvaluatorName(std::string name) { m_evalname = name; }
-  void setFieldMap(std::string& fieldMap)
+  void setEvaluatorName(const std::string &name) { m_evalname = name; }
+  void setFieldMap(const std::string &fieldMap)
   {
     m_fieldMap = fieldMap;
   }
@@ -203,6 +203,9 @@ class PHActsTrkFitter : public SubsysReco
 
   /// Flag for pp running
   bool m_pp_mode = false;
+
+  // max variation of bunch crossing away from crossing_estimate
+  short int max_bunch_search = 2;
 
   bool m_actsEvaluator = false;
   std::unique_ptr<ActsEvaluator> m_evaluator = nullptr;
