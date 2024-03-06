@@ -22,7 +22,7 @@
 #include <trackbase/TrkrDefs.h>
 #include <trackbase/TrackFitUtils.h>
 
-#include <trackbase_historic/SvtxTrack.h>
+#include <trackbase_historic/SvtxTrack_v4.h>
 #include <trackbase_historic/SvtxTrackMap.h>
 
 #include <fun4all/Fun4AllReturnCodes.h>
@@ -1155,6 +1155,10 @@ void TruthRecoTrackMatching::add_match_eval(unsigned short id_reco, unsigned sho
   for(int li = 0; li < track_struct.m_nCaloLayers; li++)
   {
     SvtxTrack::CAL_LAYER layer = static_cast<SvtxTrack::CAL_LAYER>(li + 1);
+    track_struct.cal_phibin[li] = dynamic_cast<SvtxTrack_v4*>(track)->get_cal_phibin(layer);
+    track_struct.cal_etabin[li] = dynamic_cast<SvtxTrack_v4*>(track)->get_cal_etabin(layer);
+    track_struct.cal_dphi[li] = track->get_cal_dphi(layer);
+    track_struct.cal_deta[li] = track->get_cal_deta(layer);
     track_struct.cal_energy_3x3[li] = track->get_cal_energy_3x3(layer);
     track_struct.cal_energy_5x5[li] = track->get_cal_energy_5x5(layer);
     track_struct.cal_cluster_e[li] = track->get_cal_cluster_e(layer);

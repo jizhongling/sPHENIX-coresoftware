@@ -148,6 +148,20 @@ size_t SvtxTrack_v4::erase_state(float pathlength)
   return _states.size();
 }
 
+int SvtxTrack_v4::get_cal_phibin(SvtxTrack::CAL_LAYER layer) const
+{
+  std::map<SvtxTrack::CAL_LAYER, int>::const_iterator citer = _cal_phibin.find(layer);
+  if (citer == _cal_phibin.end()) return INT_MAX;
+  return citer->second;
+}
+
+int SvtxTrack_v4::get_cal_etabin(SvtxTrack::CAL_LAYER layer) const
+{
+  std::map<SvtxTrack::CAL_LAYER, int>::const_iterator citer = _cal_etabin.find(layer);
+  if (citer == _cal_etabin.end()) return INT_MAX;
+  return citer->second;
+}
+
 float SvtxTrack_v4::get_cal_dphi(SvtxTrack::CAL_LAYER layer) const
 {
   std::map<SvtxTrack::CAL_LAYER, float>::const_iterator citer = _cal_dphi.find(layer);

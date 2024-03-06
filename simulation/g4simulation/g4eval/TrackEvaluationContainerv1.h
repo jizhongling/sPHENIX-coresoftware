@@ -262,7 +262,11 @@ class TrackEvaluationContainerv1 : public TrackEvaluationContainer
 
     //!@calorimeter information
     //@{
-    const static int m_nCaloLayers = 6;
+    static constexpr int m_nCaloLayers = 3;
+    int cal_phibin[m_nCaloLayers];
+    int cal_etabin[m_nCaloLayers];
+    float cal_dphi[m_nCaloLayers];
+    float cal_deta[m_nCaloLayers];
     float cal_energy_3x3[m_nCaloLayers];
     float cal_energy_5x5[m_nCaloLayers];
     float cal_cluster_e[m_nCaloLayers];

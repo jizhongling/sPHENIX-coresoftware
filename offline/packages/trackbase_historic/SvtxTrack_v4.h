@@ -133,6 +133,12 @@ class SvtxTrack_v4: public SvtxTrack
   //
   // calo projection methods ---------------------------------------------------
   //
+  int get_cal_phibin(CAL_LAYER layer) const;
+  void set_cal_phibin(CAL_LAYER layer, int phibin) { _cal_phibin[layer] = phibin; }
+
+  int get_cal_etabin(CAL_LAYER layer) const;
+  void set_cal_etabin(CAL_LAYER layer, int etabin) { _cal_etabin[layer] = etabin; }
+
   float get_cal_dphi(CAL_LAYER layer) const override;
   void set_cal_dphi(CAL_LAYER layer, float dphi) override { _cal_dphi[layer] = dphi; }
 
@@ -170,6 +176,8 @@ class SvtxTrack_v4: public SvtxTrack
   StateMap _states;  //< path length => state object
 
   // calorimeter matches
+  std::map<CAL_LAYER, int> _cal_phibin;
+  std::map<CAL_LAYER, int> _cal_etabin;
   std::map<CAL_LAYER, float> _cal_dphi;
   std::map<CAL_LAYER, float> _cal_deta;
   std::map<CAL_LAYER, float> _cal_energy_3x3;
