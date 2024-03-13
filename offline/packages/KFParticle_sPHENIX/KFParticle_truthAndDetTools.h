@@ -49,6 +49,9 @@ class KFParticle_truthAndDetTools
   void fillHepMCBranch(HepMC::GenParticle *particle, int daughter_id);
   int getHepMCInfo(PHCompositeNode *topNode, TTree *m_tree, const KFParticle &daughter, int daughter_id);
 
+  void initializeTrkrBranches(TTree *m_tree, int daughter_id, const std::string &daughter_number);
+  void fillTrkrBranch(PHCompositeNode *topNode, TTree *m_tree, const KFParticle &daughter, int daughter_id);
+
   void initializeCaloBranches(TTree *m_tree, int daughter_id, const std::string &daughter_number);
   void fillCaloBranch(PHCompositeNode *topNode, TTree *m_tree, const KFParticle &daughter, int daughter_id);
 
@@ -112,6 +115,9 @@ class KFParticle_truthAndDetTools
   std::vector<float> m_true_daughter_track_history_pz[max_tracks];
   std::vector<float> m_true_daughter_track_history_pE[max_tracks];
   std::vector<float> m_true_daughter_track_history_pT[max_tracks];
+
+  bool detector_mvtx_seed[max_tracks] = {0};
+  bool detector_tpc_seed[max_tracks] = {0};
 
   float detector_emcal_deltaphi[max_tracks] = {0};
   float detector_emcal_deltaeta[max_tracks] = {0};

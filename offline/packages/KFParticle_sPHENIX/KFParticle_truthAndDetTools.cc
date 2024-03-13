@@ -451,6 +451,32 @@ int KFParticle_truthAndDetTools::getHepMCInfo(PHCompositeNode *topNode, TTree * 
   return 0;
 }  // End of function
 
+void KFParticle_truthAndDetTools::initializeTrkrBranches(TTree *m_tree, int daughter_id, const std::string &daughter_number)
+{
+  m_tree->Branch(TString(daughter_number) + "_MVTX_seed", &detector_mvtx_seed[daughter_id], TString(daughter_number) + "_MVTX_seed/O");
+  m_tree->Branch(TString(daughter_number) + "_TPC_seed", &detector_tpc_seed[daughter_id], TString(daughter_number) + "_TPC_seed/O");
+}
+
+void KFParticle_truthAndDetTools::fillTrkrBranch(PHCompositeNode *topNode,
+                                                 TTree * /*m_tree*/, const KFParticle &daughter, int daughter_id)
+{
+  PHNodeIterator nodeIter(topNode);
+  PHNode *findNode = dynamic_cast<PHNode *>(nodeIter.findFirst(m_trk_map_node_name_nTuple));
+  if (findNode)
+  {
+    dst_trackmap = findNode::getClass<SvtxTrackMap>(topNode, m_trk_map_node_name_nTuple);
+  }
+  else
+  {
+    std::cout << "KFParticle truth matching: " << m_trk_map_node_name_nTuple << " does not exist" << std::endl;
+  }
+
+  track = getTrack(daughter.Id(), dst_trackmap);
+
+  detector_mvtx_seed[daughter_id] = (track->get_silicon_seed() ? true : false);
+  detector_tpc_seed[daughter_id] = (track->get_tpc_seed() ? true : false);
+}
+
 void KFParticle_truthAndDetTools::initializeCaloBranches(TTree *m_tree, int daughter_id, const std::string &daughter_number)
 {
   m_tree->Branch(TString(daughter_number) + "_EMCAL_DeltaPhi", &detector_emcal_deltaphi[daughter_id], TString(daughter_number) + "_EMCAL_DeltaPhi/F");

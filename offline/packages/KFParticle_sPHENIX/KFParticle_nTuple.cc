@@ -3,6 +3,7 @@
 #include "KFParticle_Tools.h"
 
 #include <ffaobjects/EventHeaderv1.h>
+#include <trackbase_historic/SvtxTrackMap.h>  // for SvtxTrackMap
 
 #include <phool/PHNodeIterator.h>  // for PHNodeIterator
 #include <phool/getClass.h>
@@ -245,6 +246,7 @@ void KFParticle_nTuple::initializeBranches()
     m_tree->Branch(TString(daughter_number) + "_PDG_ID", &m_calculated_daughter_pdgID[i], TString(daughter_number) + "_PDG_ID/I");
     m_tree->Branch(TString(daughter_number) + "_Covariance", &m_calculated_daughter_cov[i], TString(daughter_number) + "_Covariance[21]/F", 21);
 
+    initializeTrkrBranches(m_tree, i, daughter_number);
     if (m_calo_info)
     {
       initializeCaloBranches(m_tree, i, daughter_number);
@@ -510,6 +512,7 @@ void KFParticle_nTuple::fillBranch(PHCompositeNode* topNode,
       m_calculated_daughter_cov[i][j] = daughterArray[i].GetCovariance(j);
     }
 
+    fillTrkrBranch(topNode, m_tree, daughterArray[i], i);
     if (m_calo_info)
     {
       fillCaloBranch(topNode, m_tree, daughterArray[i], i);
@@ -609,6 +612,18 @@ void KFParticle_nTuple::fillBranch(PHCompositeNode* topNode,
   else
   {
     m_runNumber = m_evtNumber = -1;
+  }
+
+  PHNode* trkNode = dynamic_cast<PHNode*>(nodeIter.findFirst("SvtxTrackMap"));
+
+  if (trkNode)
+  {
+    SvtxTrackMap* trkMap = findNode::getClass<SvtxTrackMap>(topNode, "SvtxTrackMap");
+    m_multiplicity = trkMap->size();
+  }
+  else
+  {
+    m_multiplicity = -1;
   }
 
   m_tree->Fill();

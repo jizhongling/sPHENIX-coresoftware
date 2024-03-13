@@ -1,6 +1,11 @@
 #include "SecondaryVertexFinder.h"
 #include "ActsPropagator.h"
 
+#include <ffaobjects/EventHeaderv1.h>
+
+#include <phool/PHNodeIterator.h>  // for PHNodeIterator
+#include <phool/getClass.h>
+
 /// Tracking includes
 
 #include <trackbase/TrkrCluster.h>            // for TrkrCluster
@@ -83,13 +88,15 @@ int SecondaryVertexFinder::InitRun(PHCompositeNode *topNode)
       hdecaypos->GetYaxis()->SetTitle("decay Y (cm)");
       hdecay_radius = new TH1D("hdecay_radius", "Decay Radius", 200, 0, 40.0);
       
-      ntp = new TNtuple("ntp","decay_pairs","x1:y1:z1:px1:py1:pz1:dca3dxy1:dca3dz1:vposx1:vposy1:vposz1:vmomx1:vmomy1:vmomz1:pca_relx_1:pca_rely_1:pca_relz_1:eta1:charge1:tpcClusters_1:quality1:eta1:x2:y2:z2:px2:py2:pz2:dca3dxy2:dca3dz2:vposx2:vposy2:vposz2:vmomx2:vmomy2:vmomz2:pca_relx_2:pca_rely_2:pca_relz_2:eta2:charge2:tpcClusters_2:quality2:eta2:vertex_x:vertex_y:vertex_z:pair_dca:invariant_mass:invariant_pt:path:has_silicon1:has_silicon2");
+      ntp = new TNtuple("ntp","decay_pairs","x1:y1:z1:px1:py1:pz1:dca3dxy1:dca3dz1:vposx1:vposy1:vposz1:vmomx1:vmomy1:vmomz1:pca_relx_1:pca_rely_1:pca_relz_1:eta1:phi1:charge1:tpcClusters_1:quality1:x2:y2:z2:px2:py2:pz2:dca3dxy2:dca3dz2:vposx2:vposy2:vposz2:vmomx2:vmomy2:vmomz2:pca_relx_2:pca_rely_2:pca_relz_2:eta2:phi2:charge2:tpcClusters_2:quality2:vertex_x:vertex_y:vertex_z:pair_dca:invariant_mass:invariant_pt:path:runNumber:eventNumber:nEventTracks:"
+          "trackID1:has_silicon1:clus1_dphi_cemc:clus1_dphi_hcalin:clus1_dphi_hcalout:clus1_deta_cemc:clus1_deta_hcalin:clus1_deta_hcalout:clus1_e_cemc:clus1_e_hcalin:clus1_e_hcalout:"
+          "trackID2:has_silicon2:clus2_dphi_cemc:clus2_dphi_hcalin:clus2_dphi_hcalout:clus2_deta_cemc:clus2_deta_hcalin:clus2_deta_hcalout:clus2_e_cemc:clus2_e_hcalin:clus2_e_hcalout");
     }
   
   return ret;
 }
 
-void SecondaryVertexFinder::fillNtp(SvtxTrack *track1, SvtxTrack *track2, double dca3dxy1, double dca3dz1, double dca3dxy2, double dca3dz2,  Eigen::Vector3d vpos1,  Eigen::Vector3d vmom1, Eigen::Vector3d vpos2, Eigen::Vector3d vmom2, Acts::Vector3 pca_rel1, Acts::Vector3 pca_rel2, double pair_dca, double invariantMass, double invariantPt, double path, int has_silicon_1, int has_silicon_2)
+void SecondaryVertexFinder::fillNtp(SvtxTrack *track1, SvtxTrack *track2, double dca3dxy1, double dca3dz1, double dca3dxy2, double dca3dz2,  Eigen::Vector3d vpos1,  Eigen::Vector3d vmom1, Eigen::Vector3d vpos2, Eigen::Vector3d vmom2, Acts::Vector3 pca_rel1, Acts::Vector3 pca_rel2, double pair_dca, double invariantMass, double invariantPt, double path, int has_silicon_1, int has_silicon_2, int runNumber, int evtNumber, size_t nTracks)
 {
   double px1          = track1->get_px();
   double py1          = track1->get_py();
@@ -97,6 +104,7 @@ void SecondaryVertexFinder::fillNtp(SvtxTrack *track1, SvtxTrack *track2, double
   auto tpcSeed1       = track1->get_tpc_seed();
   size_t tpcClusters1 = tpcSeed1->size_cluster_keys();
   double eta1         = asinh(pz1 / sqrt(pow(px1, 2) + pow(py1, 2)));
+  double phi1         = atan2(py1, px1);
 
   double px2          = track2->get_px();
   double py2          = track2->get_py();
@@ -104,39 +112,87 @@ void SecondaryVertexFinder::fillNtp(SvtxTrack *track1, SvtxTrack *track2, double
   auto tpcSeed2       = track2->get_tpc_seed();
   size_t tpcClusters2 = tpcSeed2->size_cluster_keys();
   double eta2         = asinh(pz2 / sqrt(pow(px2, 2) + pow(py2, 2)));
+  double phi2         = atan2(py2, px2);
 
   auto vtxid      = track1->get_vertex_id();
   auto svtxVertex = _svtx_vertex_map->get(vtxid);
   if(!svtxVertex){ return; }
+
+  int trkid1 = track1->get_id();
+  int trkid2 = track2->get_id();
+
+  float clus1_dphi_cemc = track1->get_cal_dphi(SvtxTrack::CEMC);
+  float clus1_dphi_hcalin = track1->get_cal_dphi(SvtxTrack::HCALIN);
+  float clus1_dphi_hcalout = track1->get_cal_dphi(SvtxTrack::HCALOUT);
+
+  float clus1_deta_cemc = track1->get_cal_deta(SvtxTrack::CEMC);
+  float clus1_deta_hcalin = track1->get_cal_deta(SvtxTrack::HCALIN);
+  float clus1_deta_hcalout = track1->get_cal_deta(SvtxTrack::HCALOUT);
+
+  float clus1_e_cemc = track1->get_cal_cluster_e(SvtxTrack::CEMC);
+  float clus1_e_hcalin = track1->get_cal_cluster_e(SvtxTrack::HCALIN);
+  float clus1_e_hcalout = track1->get_cal_cluster_e(SvtxTrack::HCALOUT);
   
+  float clus2_dphi_cemc = track2->get_cal_dphi(SvtxTrack::CEMC);
+  float clus2_dphi_hcalin = track2->get_cal_dphi(SvtxTrack::HCALIN);
+  float clus2_dphi_hcalout = track2->get_cal_dphi(SvtxTrack::HCALOUT);
+
+  float clus2_deta_cemc = track2->get_cal_deta(SvtxTrack::CEMC);
+  float clus2_deta_hcalin = track2->get_cal_deta(SvtxTrack::HCALIN);
+  float clus2_deta_hcalout = track2->get_cal_deta(SvtxTrack::HCALOUT);
+
+  float clus2_e_cemc = track2->get_cal_cluster_e(SvtxTrack::CEMC);
+  float clus2_e_hcalin = track2->get_cal_cluster_e(SvtxTrack::HCALIN);
+  float clus2_e_hcalout = track2->get_cal_cluster_e(SvtxTrack::HCALOUT);
+
   float reco_info[] = {
     track1->get_x(), track1->get_y(), track1->get_z(), 
     track1->get_px(), track1->get_py(), track1->get_pz(), 
     (float) dca3dxy1, (float) dca3dz1, (float) vpos1(0), (float) vpos1(1), (float) vpos1(2),
     (float) vmom1(0), (float) vmom1(1), (float) vmom1(2),
     (float) pca_rel1(0), (float) pca_rel1(1), (float) pca_rel1(2), 
-    (float) eta1,  (float) track1->get_charge(), (float) tpcClusters1, 
-    (float) track1->get_quality(), (float) eta1,
+    (float) eta1,  (float) phi1, (float) track1->get_charge(),
+    (float) tpcClusters1, (float) track1->get_quality(),
     track2->get_x(), track2->get_y(), track2->get_z(),  
     track2->get_px(), track2->get_py(), track2->get_pz(), 
     (float) dca3dxy2, (float) dca3dz2, (float) vpos2(0), (float) vpos2(1), (float) vpos2(2),
     (float) vmom2(0), (float) vmom2(1), (float) vmom2(2),
     (float) pca_rel2(0), (float) pca_rel2(1), (float) pca_rel2(2), 
-    (float) eta2, (float) track2->get_charge(), (float) tpcClusters2, 
-    (float) track2->get_quality(), (float) eta2,
+    (float) eta2, (float) phi2, (float) track2->get_charge(),
+    (float) tpcClusters2, (float) track2->get_quality(),
     svtxVertex->get_x(), svtxVertex->get_y(), svtxVertex->get_z(), 
     (float) pair_dca,(float) invariantMass, (float) invariantPt, (float) path,
-    (float) has_silicon_1, (float)  has_silicon_2};
+    (float) runNumber, (float) evtNumber, (float) nTracks,
+    (float) trkid1, (float) has_silicon_1,
+    clus1_dphi_cemc, clus1_dphi_hcalin, clus1_dphi_hcalout,
+    clus1_deta_cemc, clus1_deta_hcalin, clus1_deta_hcalout,
+    clus1_e_cemc, clus1_e_hcalin, clus1_e_hcalout,
+    (float) trkid2, (float) has_silicon_2,
+    clus2_dphi_cemc, clus2_dphi_hcalin, clus2_dphi_hcalout,
+    clus2_deta_cemc, clus2_deta_hcalin, clus2_deta_hcalout,
+    clus2_e_cemc, clus2_e_hcalin, clus2_e_hcalout};
 
 
   ntp->Fill(reco_info);
 }
 
 //____________________________________________________________________________..
-int SecondaryVertexFinder::process_event(PHCompositeNode */*topNode*/)
+int SecondaryVertexFinder::process_event(PHCompositeNode *topNode)
 {
+  int runNumber = -1;
+  int evtNumber = -1;
+  PHNodeIterator nodeIter(topNode);
+  PHNode* evtNode = dynamic_cast<PHNode*>(nodeIter.findFirst("EventHeader"));
+  if(evtNode)
+  {
+    EventHeaderv1* evtHeader = findNode::getClass<EventHeaderv1>(topNode, "EventHeader");
+    runNumber = evtHeader->get_RunNumber();
+    evtNumber = evtHeader->get_EvtSequence();
+  }
+
   if(Verbosity() > 0)
     std::cout << PHWHERE << " track map size " << _track_map->size()  << std::endl;
+  size_t nTracks = _track_map->size();
 
   // Loop over tracks and check for close DCA match with all other tracks
   for(auto tr1_it = _track_map->begin(); tr1_it != _track_map->end(); ++tr1_it)
@@ -374,7 +430,8 @@ int SecondaryVertexFinder::process_event(PHCompositeNode */*topNode*/)
 		  if(_write_ntuple)
 		    {
 		      fillNtp(tr1, tr2,  dca3dxy1, dca3dz1, dca3dxy2, dca3dz2, vpos1, vmom1, vpos2, vmom2,
-			      PCA1, PCA2, pair_dca, tsum.M(), tsum.Pt(), path.norm(), has_silicon_1, has_silicon_2);
+			      PCA1, PCA2, pair_dca, tsum.M(), tsum.Pt(), path.norm(), has_silicon_1, has_silicon_2,
+                              runNumber, evtNumber, nTracks);
 		    }
 
 		  if(_write_electrons_node)
