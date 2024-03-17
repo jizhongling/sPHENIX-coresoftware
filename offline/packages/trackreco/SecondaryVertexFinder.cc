@@ -89,8 +89,8 @@ int SecondaryVertexFinder::InitRun(PHCompositeNode *topNode)
       hdecay_radius = new TH1D("hdecay_radius", "Decay Radius", 200, 0, 40.0);
       
       ntp = new TNtuple("ntp","decay_pairs","x1:y1:z1:px1:py1:pz1:dca3dxy1:dca3dz1:vposx1:vposy1:vposz1:vmomx1:vmomy1:vmomz1:pca_relx_1:pca_rely_1:pca_relz_1:eta1:phi1:charge1:tpcClusters_1:quality1:x2:y2:z2:px2:py2:pz2:dca3dxy2:dca3dz2:vposx2:vposy2:vposz2:vmomx2:vmomy2:vmomz2:pca_relx_2:pca_rely_2:pca_relz_2:eta2:phi2:charge2:tpcClusters_2:quality2:vertex_x:vertex_y:vertex_z:pair_dca:invariant_mass:invariant_pt:path:runNumber:eventNumber:nEventTracks:"
-          "trackID1:has_silicon1:clus1_dphi_cemc:clus1_dphi_hcalin:clus1_dphi_hcalout:clus1_deta_cemc:clus1_deta_hcalin:clus1_deta_hcalout:clus1_e_cemc:clus1_e_hcalin:clus1_e_hcalout:"
-          "trackID2:has_silicon2:clus2_dphi_cemc:clus2_dphi_hcalin:clus2_dphi_hcalout:clus2_deta_cemc:clus2_deta_hcalin:clus2_deta_hcalout:clus2_e_cemc:clus2_e_hcalin:clus2_e_hcalout");
+          "trackID1:has_silicon1:clus1_deta_cemc:clus1_dphi_cemc:clus1_e_cemc:clus1_deta_hcalin:clus1_dphi_hcalin:clus1_e_hcalin:clus1_deta_hcalout:clus1_dphi_hcalout:clus1_e_hcalout:"
+          "trackID2:has_silicon2:clus2_deta_cemc:clus2_dphi_cemc:clus2_e_cemc:clus2_deta_hcalin:clus2_dphi_hcalin:clus2_e_hcalin:clus2_deta_hcalout:clus2_dphi_hcalout:clus2_e_hcalout");
     }
   
   return ret;
@@ -121,28 +121,28 @@ void SecondaryVertexFinder::fillNtp(SvtxTrack *track1, SvtxTrack *track2, double
   int trkid1 = track1->get_id();
   int trkid2 = track2->get_id();
 
-  float clus1_dphi_cemc = track1->get_cal_dphi(SvtxTrack::CEMC);
-  float clus1_dphi_hcalin = track1->get_cal_dphi(SvtxTrack::HCALIN);
-  float clus1_dphi_hcalout = track1->get_cal_dphi(SvtxTrack::HCALOUT);
-
   float clus1_deta_cemc = track1->get_cal_deta(SvtxTrack::CEMC);
-  float clus1_deta_hcalin = track1->get_cal_deta(SvtxTrack::HCALIN);
-  float clus1_deta_hcalout = track1->get_cal_deta(SvtxTrack::HCALOUT);
-
+  float clus1_dphi_cemc = track1->get_cal_dphi(SvtxTrack::CEMC);
   float clus1_e_cemc = track1->get_cal_cluster_e(SvtxTrack::CEMC);
+
+  float clus1_deta_hcalin = track1->get_cal_deta(SvtxTrack::HCALIN);
+  float clus1_dphi_hcalin = track1->get_cal_dphi(SvtxTrack::HCALIN);
   float clus1_e_hcalin = track1->get_cal_cluster_e(SvtxTrack::HCALIN);
+
+  float clus1_deta_hcalout = track1->get_cal_deta(SvtxTrack::HCALOUT);
+  float clus1_dphi_hcalout = track1->get_cal_dphi(SvtxTrack::HCALOUT);
   float clus1_e_hcalout = track1->get_cal_cluster_e(SvtxTrack::HCALOUT);
   
-  float clus2_dphi_cemc = track2->get_cal_dphi(SvtxTrack::CEMC);
-  float clus2_dphi_hcalin = track2->get_cal_dphi(SvtxTrack::HCALIN);
-  float clus2_dphi_hcalout = track2->get_cal_dphi(SvtxTrack::HCALOUT);
-
   float clus2_deta_cemc = track2->get_cal_deta(SvtxTrack::CEMC);
-  float clus2_deta_hcalin = track2->get_cal_deta(SvtxTrack::HCALIN);
-  float clus2_deta_hcalout = track2->get_cal_deta(SvtxTrack::HCALOUT);
-
+  float clus2_dphi_cemc = track2->get_cal_dphi(SvtxTrack::CEMC);
   float clus2_e_cemc = track2->get_cal_cluster_e(SvtxTrack::CEMC);
+
+  float clus2_deta_hcalin = track2->get_cal_deta(SvtxTrack::HCALIN);
+  float clus2_dphi_hcalin = track2->get_cal_dphi(SvtxTrack::HCALIN);
   float clus2_e_hcalin = track2->get_cal_cluster_e(SvtxTrack::HCALIN);
+
+  float clus2_deta_hcalout = track2->get_cal_deta(SvtxTrack::HCALOUT);
+  float clus2_dphi_hcalout = track2->get_cal_dphi(SvtxTrack::HCALOUT);
   float clus2_e_hcalout = track2->get_cal_cluster_e(SvtxTrack::HCALOUT);
 
   float reco_info[] = {
@@ -164,13 +164,13 @@ void SecondaryVertexFinder::fillNtp(SvtxTrack *track1, SvtxTrack *track2, double
     (float) pair_dca,(float) invariantMass, (float) invariantPt, (float) path,
     (float) runNumber, (float) evtNumber, (float) nTracks,
     (float) trkid1, (float) has_silicon_1,
-    clus1_dphi_cemc, clus1_dphi_hcalin, clus1_dphi_hcalout,
-    clus1_deta_cemc, clus1_deta_hcalin, clus1_deta_hcalout,
-    clus1_e_cemc, clus1_e_hcalin, clus1_e_hcalout,
+    clus1_deta_cemc, clus1_dphi_cemc, clus1_e_cemc,
+    clus1_deta_hcalin, clus1_dphi_hcalin, clus1_e_hcalin,
+    clus1_deta_hcalout, clus1_dphi_hcalout, clus1_e_hcalout,
     (float) trkid2, (float) has_silicon_2,
-    clus2_dphi_cemc, clus2_dphi_hcalin, clus2_dphi_hcalout,
-    clus2_deta_cemc, clus2_deta_hcalin, clus2_deta_hcalout,
-    clus2_e_cemc, clus2_e_hcalin, clus2_e_hcalout};
+    clus2_deta_cemc, clus2_dphi_cemc, clus2_e_cemc,
+    clus2_deta_hcalin, clus2_dphi_hcalin, clus2_e_hcalin,
+    clus2_deta_hcalout, clus2_dphi_hcalout, clus2_e_hcalout};
 
 
   ntp->Fill(reco_info);
