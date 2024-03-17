@@ -195,7 +195,7 @@ void PHActsTrackProjection::updateSvtxTrack(
   double proj_phi = out.get_phi();
   double proj_eta = out.get_eta();
   int proj_phibin = m_towerGeomContainer->get_phibin(proj_phi);
-  int proj_etabin = m_towerGeomContainer->get_phibin(proj_eta);
+  int proj_etabin = m_towerGeomContainer->get_etabin(proj_eta);
   dynamic_cast<SvtxTrack_v4*>(svtxTrack)->set_cal_phibin(m_caloTypes.at(caloLayer), proj_phibin);
   dynamic_cast<SvtxTrack_v4*>(svtxTrack)->set_cal_etabin(m_caloTypes.at(caloLayer), proj_etabin);
 
