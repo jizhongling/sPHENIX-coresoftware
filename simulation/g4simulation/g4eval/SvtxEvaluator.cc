@@ -205,9 +205,9 @@ int SvtxEvaluator::Init(PHCompositeNode* /*topNode*/)
                               "vertexID:vx:vy:vz:dca2d:dca2dsigma:dca3dxy:dca3dxysigma:dca3dz:dca3dzsigma:pcax:pcay:pcaz:nfromtruth:nwrong:ntrumaps:nwrongmaps:ntruintt:nwrongintt:ntrutpc:nwrongtpc:ntrumms:nwrongmms:ntrutpc1:nwrongtpc1:ntrutpc11:nwrongtpc11:ntrutpc2:nwrongtpc2:ntrutpc3:nwrongtpc3:layersfromtruth:"
 			      "npedge:nredge:nbig:novlp:merr:msize:"
                               "nhittpcall:nhittpcin:nhittpcmid:nhittpcout:nclusall:nclustpc:nclusintt:nclusmaps:nclusmms:"
-                              "clus_dphi_cemc:clus_dphi_hcalin:clus_dphi_hcalout:clus_dphi_outer_cemc:clus_dphi_outer_hcalin:clus_dphi_outer_hcalout:"
-                              "clus_deta_cemc:clus_deta_hcalin:clus_deta_hcalout:clus_deta_outer_cemc:clus_deta_outer_hcalin:clus_deta_outer_hcalout:"
-                              "clus_e_cemc:clus_e_hcalin:clus_e_hcalout:clus_e_outer_cemc:clus_e_outer_hcalin:clus_e_outer_hcalout");
+                              "clus_deta_cemc:clus_dphi_cemc:clus_e_cemc:"
+                              "clus_deta_hcalin:clus_dphi_hcalin:clus_e_hcalin:"
+                              "clus_deta_hcalout:clus_dphi_hcalout:clus_e_hcalout");
   }
 
   if (_do_track_eval)
@@ -225,9 +225,9 @@ int SvtxEvaluator::Init(PHCompositeNode* /*topNode*/)
                              "ntrutpc:nwrongtpc:ntrumms:nwrongmms:ntrutpc1:nwrongtpc1:ntrutpc11:nwrongtpc11:ntrutpc2:nwrongtpc2:ntrutpc3:nwrongtpc3:layersfromtruth:"
 			     "npedge:nredge:nbig:novlp:merr:msize:"
                              "nhittpcall:nhittpcin:nhittpcmid:nhittpcout:nclusall:nclustpc:nclusintt:nclusmaps:nclusmms:"
-                             "clus_dphi_cemc:clus_dphi_hcalin:clus_dphi_hcalout:clus_dphi_outer_cemc:clus_dphi_outer_hcalin:clus_dphi_outer_hcalout:"
-                             "clus_deta_cemc:clus_deta_hcalin:clus_deta_hcalout:clus_deta_outer_cemc:clus_deta_outer_hcalin:clus_deta_outer_hcalout:"
-                             "clus_e_cemc:clus_e_hcalin:clus_e_hcalout:clus_e_outer_cemc:clus_e_outer_hcalin:clus_e_outer_hcalout");
+                             "clus_deta_cemc:clus_dphi_cemc:clus_e_cemc:"
+                             "clus_deta_hcalin:clus_dphi_hcalin:clus_e_hcalin:"
+                             "clus_deta_hcalout:clus_dphi_hcalout:clus_e_hcalout");
   }
 
   if (_do_gseed_eval)
@@ -3082,26 +3082,17 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 	float tpx0 = NAN;
 	float tpy0 = NAN;
 
-        float clus_dphi_cemc = NAN;
-        float clus_dphi_hcalin = NAN;
-        float clus_dphi_hcalout = NAN;
-        float clus_dphi_outer_cemc = NAN;
-        float clus_dphi_outer_hcalin = NAN;
-        float clus_dphi_outer_hcalout = NAN;
-
         float clus_deta_cemc = NAN;
-        float clus_deta_hcalin = NAN;
-        float clus_deta_hcalout = NAN;
-        float clus_deta_outer_cemc = NAN;
-        float clus_deta_outer_hcalin = NAN;
-        float clus_deta_outer_hcalout = NAN;
-
+        float clus_dphi_cemc = NAN;
         float clus_e_cemc = NAN;
+
+        float clus_deta_hcalin = NAN;
+        float clus_dphi_hcalin = NAN;
         float clus_e_hcalin = NAN;
+
+        float clus_deta_hcalout = NAN;
+        float clus_dphi_hcalout = NAN;
         float clus_e_hcalout = NAN;
-        float clus_e_outer_cemc = NAN;
-        float clus_e_outer_hcalin = NAN;
-        float clus_e_outer_hcalout = NAN;
 
         if (_do_track_match)
         {
@@ -3442,26 +3433,17 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
 	    nwrongtpc3 = pair.first;
             layersfromtruth = trackeval->get_nclusters_contribution_by_layer(track, g4particle);
 
-            clus_dphi_cemc = track->get_cal_dphi(SvtxTrack::CEMC);
-            clus_dphi_hcalin = track->get_cal_dphi(SvtxTrack::HCALIN);
-            clus_dphi_hcalout = track->get_cal_dphi(SvtxTrack::HCALOUT);
-            clus_dphi_outer_cemc = track->get_cal_dphi(SvtxTrack::OUTER_CEMC);
-            clus_dphi_outer_hcalin = track->get_cal_dphi(SvtxTrack::OUTER_HCALIN);
-            clus_dphi_outer_hcalout = track->get_cal_dphi(SvtxTrack::OUTER_HCALOUT);
-
             clus_deta_cemc = track->get_cal_deta(SvtxTrack::CEMC);
-            clus_deta_hcalin = track->get_cal_deta(SvtxTrack::HCALIN);
-            clus_deta_hcalout = track->get_cal_deta(SvtxTrack::HCALOUT);
-            clus_deta_outer_cemc = track->get_cal_deta(SvtxTrack::OUTER_CEMC);
-            clus_deta_outer_hcalin = track->get_cal_deta(SvtxTrack::OUTER_HCALIN);
-            clus_deta_outer_hcalout = track->get_cal_deta(SvtxTrack::OUTER_HCALOUT);
-
+            clus_dphi_cemc = track->get_cal_dphi(SvtxTrack::CEMC);
             clus_e_cemc = track->get_cal_cluster_e(SvtxTrack::CEMC);
+
+            clus_deta_hcalin = track->get_cal_deta(SvtxTrack::HCALIN);
+            clus_dphi_hcalin = track->get_cal_dphi(SvtxTrack::HCALIN);
             clus_e_hcalin = track->get_cal_cluster_e(SvtxTrack::HCALIN);
+
+            clus_deta_hcalout = track->get_cal_deta(SvtxTrack::HCALOUT);
+            clus_dphi_hcalout = track->get_cal_dphi(SvtxTrack::HCALOUT);
             clus_e_hcalout = track->get_cal_cluster_e(SvtxTrack::HCALOUT);
-            clus_e_outer_cemc = track->get_cal_cluster_e(SvtxTrack::OUTER_CEMC);
-            clus_e_outer_hcalin = track->get_cal_cluster_e(SvtxTrack::OUTER_HCALIN);
-            clus_e_outer_hcalout = track->get_cal_cluster_e(SvtxTrack::OUTER_HCALOUT);
           }
         }
 
@@ -3586,9 +3568,9 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
                                nhit_tpc_in,
                                nhit_tpc_mid,
                                nhit_tpc_out, nclus_all, nclus_tpc, nclus_intt, nclus_maps, nclus_mms,
-                               clus_dphi_cemc, clus_dphi_hcalin, clus_dphi_hcalout, clus_dphi_outer_cemc, clus_dphi_outer_hcalin, clus_dphi_outer_hcalout,
-                               clus_deta_cemc, clus_deta_hcalin, clus_deta_hcalout, clus_deta_outer_cemc, clus_deta_outer_hcalin, clus_deta_outer_hcalout,
-                               clus_e_cemc, clus_e_hcalin, clus_e_hcalout, clus_e_outer_cemc, clus_e_outer_hcalin, clus_e_outer_hcalout};
+                               clus_deta_cemc, clus_dphi_cemc, clus_e_cemc,
+                               clus_deta_hcalin, clus_dphi_hcalin, clus_e_hcalin,
+                               clus_deta_hcalout, clus_dphi_hcalout, clus_e_hcalout};
 
         /*
         std::cout << " ievent " << _ievent
@@ -4205,26 +4187,17 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
           }
         }
 
-        float clus_dphi_cemc = track->get_cal_dphi(SvtxTrack::CEMC);
-        float clus_dphi_hcalin = track->get_cal_dphi(SvtxTrack::HCALIN);
-        float clus_dphi_hcalout = track->get_cal_dphi(SvtxTrack::HCALOUT);
-        float clus_dphi_outer_cemc = track->get_cal_dphi(SvtxTrack::OUTER_CEMC);
-        float clus_dphi_outer_hcalin = track->get_cal_dphi(SvtxTrack::OUTER_HCALIN);
-        float clus_dphi_outer_hcalout = track->get_cal_dphi(SvtxTrack::OUTER_HCALOUT);
-
         float clus_deta_cemc = track->get_cal_deta(SvtxTrack::CEMC);
-        float clus_deta_hcalin = track->get_cal_deta(SvtxTrack::HCALIN);
-        float clus_deta_hcalout = track->get_cal_deta(SvtxTrack::HCALOUT);
-        float clus_deta_outer_cemc = track->get_cal_deta(SvtxTrack::OUTER_CEMC);
-        float clus_deta_outer_hcalin = track->get_cal_deta(SvtxTrack::OUTER_HCALIN);
-        float clus_deta_outer_hcalout = track->get_cal_deta(SvtxTrack::OUTER_HCALOUT);
-
+        float clus_dphi_cemc = track->get_cal_dphi(SvtxTrack::CEMC);
         float clus_e_cemc = track->get_cal_cluster_e(SvtxTrack::CEMC);
+
+        float clus_deta_hcalin = track->get_cal_deta(SvtxTrack::HCALIN);
+        float clus_dphi_hcalin = track->get_cal_dphi(SvtxTrack::HCALIN);
         float clus_e_hcalin = track->get_cal_cluster_e(SvtxTrack::HCALIN);
+
+        float clus_deta_hcalout = track->get_cal_deta(SvtxTrack::HCALOUT);
+        float clus_dphi_hcalout = track->get_cal_dphi(SvtxTrack::HCALOUT);
         float clus_e_hcalout = track->get_cal_cluster_e(SvtxTrack::HCALOUT);
-        float clus_e_outer_cemc = track->get_cal_cluster_e(SvtxTrack::OUTER_CEMC);
-        float clus_e_outer_hcalin = track->get_cal_cluster_e(SvtxTrack::OUTER_HCALIN);
-        float clus_e_outer_hcalout = track->get_cal_cluster_e(SvtxTrack::OUTER_HCALOUT);
 
 	if(Verbosity() > 2)
 	  {
@@ -4337,9 +4310,9 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode* topNode)
                               nhit_tpc_in,
                               nhit_tpc_mid,
                               nhit_tpc_out, nclus_all, nclus_tpc, nclus_intt, nclus_maps, nclus_mms,
-                              clus_dphi_cemc, clus_dphi_hcalin, clus_dphi_hcalout, clus_dphi_outer_cemc, clus_dphi_outer_hcalin, clus_dphi_outer_hcalout,
-                              clus_deta_cemc, clus_deta_hcalin, clus_deta_hcalout, clus_deta_outer_cemc, clus_deta_outer_hcalin, clus_deta_outer_hcalout,
-                              clus_e_cemc, clus_e_hcalin, clus_e_hcalout, clus_e_outer_cemc, clus_e_outer_hcalin, clus_e_outer_hcalout};
+                              clus_deta_cemc, clus_dphi_cemc, clus_e_cemc,
+                              clus_deta_hcalin, clus_dphi_hcalin, clus_e_hcalin,
+                              clus_deta_hcalout, clus_dphi_hcalout, clus_e_hcalout};
 
         if (Verbosity() >= 1)
         {
