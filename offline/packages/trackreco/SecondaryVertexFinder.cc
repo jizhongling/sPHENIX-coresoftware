@@ -19,7 +19,7 @@
 #include <trackbase_historic/SvtxTrackMap_v2.h>
 #include <globalvertex/SvtxVertex_v1.h>
 #include <globalvertex/SvtxVertexMap_v1.h>
-#include <trackbase_historic/TrackSeed_v1.h>
+#include <trackbase_historic/TrackSeed_v2.h>
 #include <trackbase_historic/ActsTransformations.h>
 
 #include <Acts/Geometry/GeometryIdentifier.hpp>
