@@ -35,13 +35,13 @@ lib_LTLIBRARIES = \
   libtpc.la
 
 pkginclude_HEADERS = \
+  LaserClusterizer.h \
   TrainingHitsContainer.h \
   TrainingHits.h \
   TpcRawDataTree.h \
   TpcClusterCleaner.h \
   TpcClusterizer.h \
   TpcClusterMover.h \
-  TpcClusterQA.h \
   TpcClusterZCrossingCorrection.h \
   TpcCombinedRawDataUnpacker.h \
   TpcDistortionCorrection.h \
@@ -52,11 +52,13 @@ pkginclude_HEADERS = \
   TpcSimpleClusterizer.h
 
 ROOTDICTS = \
+  LaserClusterizer_Dict.cc \
   TrainingHitsContainer_Dict.cc \
   TrainingHits_Dict.cc
 
 pcmdir = $(libdir)
 nobase_dist_pcm_DATA = \
+  LaserClusterizer_Dict_rdict.pcm \
   TrainingHitsContainer_Dict_rdict.pcm \
   TrainingHits_Dict_rdict.pcm
 
@@ -66,10 +68,10 @@ dist_mydata_DATA = \
 
 # sources for tpc library
 libtpc_la_SOURCES = \
+  LaserClusterizer.cc \
   TpcRawDataTree.cc \
   TpcClusterCleaner.cc \
   TpcClusterizer.cc \
-  TpcClusterQA.cc \
   TpcCombinedRawDataUnpacker.cc \
   TpcLoadDistortionCorrection.cc \
   TpcMap.cc \
@@ -85,12 +87,12 @@ libtpc_la_LIBADD = \
   -lmicromegas_io \
   -lfun4all \
   -lSpectrum \
-  -lpthread \
-  -lqautils
+  -lpthread
 
 # sources for io library
 libtpc_io_la_SOURCES = \
   $(ROOTDICTS) \
+  LaserClusterizer.cc \
   TrainingHitsContainer.cc \
   TrainingHits.cc \
   TpcClusterMover.cc \

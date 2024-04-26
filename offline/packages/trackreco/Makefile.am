@@ -41,7 +41,6 @@ pkginclude_HEADERS = \
   PHActsTrackProjection.h \
   PHActsTrackPropagator.h \
   PHCASeeding.h \
-  TrackQA.h \
   PHCosmicsFilter.h \
   PHCosmicsTrkFitter.h \
   PHCosmicSeeder.h \
@@ -53,6 +52,7 @@ pkginclude_HEADERS = \
   PHInitVertexing.h \
   PHMicromegasTpcTrackMatching.h \
   PHSiliconTpcTrackMatching.h \
+  PHSiliconCosmicSeeding.h \
   PHSimpleVertexFinder.h \
   PHTrackCleaner.h \
   PHTrackSelector.h \
@@ -126,7 +126,6 @@ libtrack_reco_la_SOURCES = \
   ALICEKF.cc \
   PH3DVertexing.cc \
   PHCASeeding.cc \
-  TrackQA.cc \
   PHCosmicsFilter.cc \
   PHCosmicSeedCombiner.cc \
   PHCosmicSeeder.cc \
@@ -140,6 +139,7 @@ libtrack_reco_la_SOURCES = \
   PHSiliconHelicalPropagator.cc \
   PHSiliconSeedMerger.cc \
   PHSiliconTpcTrackMatching.cc \
+  PHSiliconCosmicSeeding.cc \
   PHSimpleKFProp.cc \
   PHSimpleVertexFinder.cc \
   PHTpcClusterMover.cc \
